@@ -8,5 +8,6 @@ pub use value::Value;
 pub mod cell;
 pub use cell::Cell;
 pub mod cons;
-pub use cons::cons;
+pub use cons::{car,cdr,cons};
+pub mod test;
 // pub use Value::{Cell, Head, Nil};
