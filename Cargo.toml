@@ -2,6 +2,13 @@
 name = "rust-datastructures"
 version = "0.1.0"
 edition = "2024"
+autobenches = false
+autoexamples = false
+autotests = false
+
+
+[lib]
+test = true
 
 [dependencies]
 

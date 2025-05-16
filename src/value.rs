@@ -2,7 +2,7 @@ use std::borrow::{Borrow, Cow, ToOwned};
 use std::ops::Deref;
 use std::rc::Rc;
 
-use crate::ListValue;
+use crate::{ListValue, Cell, cons};
 
 #[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Debug, Default)]
 pub enum Value<'v> {
@@ -47,110 +47,6 @@ mod value_tests {
     fn value_from_string() {
         let value = "string".to_string();
         assert_equal!(Value::from(value).to_string(), "'string");
-    }
-}
-
-#[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Debug, Default)]
-pub struct Cell<'c> {
-    pub head: Value<'c>,
-    pub tail: Option<Rc<Cell<'c>>>,
-}
-impl<'c> Cell<'_> {
-    pub fn nil() -> Cell<'c> {
-        Cell::from(Value::Nil)
-    }
-
-    pub fn is_nil(&self) -> bool {
-        self.head.is_nil() && self.tail.is_none()
-    }
-}
-
-#[cfg(test)]
-mod cell_tests {
-    use k9::assert_equal;
-
-    use super::*;
-
-    #[test]
-    fn from_value_nil() {
-        assert_equal!(
-            Cell::from(Value::Nil),
-            Cell {
-                head: Value::Nil,
-                tail: None
-            }
-        );
-    }
-    #[test]
-    fn from_value_symbol() {
-        assert_equal!(
-            Cell::from(Value::from("symbol")),
-            Cell {
-                head: Value::from("symbol"),
-                tail: None
-            }
-        );
-    }
-    #[test]
-    fn nil() {
-        assert_equal!(Cell::nil(), Cell::from(Value::Nil));
-    }
-    #[test]
-    fn from_cell_nil() {
-        assert_equal!(Cell::nil(), Cell::from(Cell::nil()));
-    }
-}
-
-pub fn cons<'a, H: Into<Value<'a>>>(head: H, tail: H) -> Cell<'a> {
-    let head = head.into();
-    let tail = tail.into();
-
-    Cell {
-        head: if head.is_nil() { Value::Nil } else { head },
-        tail: match tail {
-            Value::Nil => None,
-            Value::Cell(cell) =>
-                if cell.as_ref().is_nil() {
-                    None
-                } else {
-                    Some(cell)
-                },
-            value => Some(Rc::new(Cell::from(value))),
-        },
-    }
-}
-#[cfg(test)]
-mod cons_tests {
-    use k9::assert_equal;
-
-    use super::*;
-
-    #[test]
-    fn cons_nil() {
-        assert_equal!(cons(Cell::nil(), Cell::nil()), Cell::nil());
-    }
-}
-
-impl<'c> From<Value<'c>> for Cell<'c> {
-    fn from(head: Value<'c>) -> Cell<'c> {
-        Cell { head, tail: None }
-    }
-}
-impl<'v> Into<Value<'v>> for Cell<'v> {
-    fn into(self) -> Value<'v> {
-        Value::Cell(self.into())
-    }
-}
-
-impl std::fmt::Display for Cell<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "({}{})",
-            self.head,
-            String::new(),
-            //self.tail.map(|cell|cell.to_string()).unwrap_or_default()
-        )
     }
 }
 
