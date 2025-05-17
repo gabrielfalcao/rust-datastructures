@@ -89,6 +89,30 @@ mod value_tests {
         assert_debug_equal!(Value::from(value), "string");
     }
     #[test]
+    fn value_from_cell_head_symbol_tail_nil() {
+        let cell = Cell {
+            head: Value::from("head"),
+            tail: Some(Rc::new(Cell {
+                head: Value::Nil,
+                tail: None,
+            })),
+        };
+        let value = Value::from(cell.clone());
+        assert_equal!(Cell::from(value), cell);
+    }
+    #[test]
+    fn value_from_cell_head_symbol_tail_head_symbol() {
+        let cell = Cell {
+            head: Value::from("head"),
+            tail: Some(Rc::new(Cell {
+                head: Value::from("tail"),
+                tail: None,
+            })),
+        };
+        let value = Value::from(cell.clone());
+        assert_equal!(Cell::from(value), cell);
+    }
+    #[test]
     fn value_display_nil() {
         assert_display_equal!(Value::Nil, "nil");
     }
@@ -136,18 +160,35 @@ mod value_tests {
     //         }),
     //         "head tail"
     //     );
+    //     assert_display_equal!(
+    //         Value::from(Cell {
+    //             head: Value::from("head"),
+    //             tail: Some(Rc::new(Cell {
+    //                 head: Value::from("tail"),
+    //                 tail: None
+    //             }))
+    //         }),
+    //         "head tail"
+    //     );
 
+    //     // assert_debug_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head . tail)");
+    //     // assert_display_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head tail)");
     // }
-    // #[test]
-    // fn value_debug_cell_head_symbol_tail_symbol() {
-    //     assert_equal!(cons("head", Some(Cell::from(Value::from("tail"))))), "(head . tail)");
-    //     assert_display_equal!(Value::from(cons("head", Some(Cell::from(Value::from("tail"))))), "(head . tail)");
-    // }
+    // // #[test]
+    // // fn value_debug_cell_head_symbol_tail_symbol() {
+    // //     assert_equal!(cons("head", Some(Cell::from(Value::from("tail"))))), "(head . tail)");
+    // //     assert_display_equal!(Value::from(cons("head", Some(Cell::from(Value::from("tail"))))), "(head . tail)");
+    // // }
 }
 
 impl<'v> From<&'v str> for Value<'v> {
     fn from(value: &'v str) -> Value<'v> {
         Value::Symbol(Cow::from(value))
+    }
+}
+impl<'v> From<Cow<'v, str>> for Value<'v> {
+    fn from(value: Cow<'v, str>) -> Value<'v> {
+        Value::from(value.into_owned())
     }
 }
 impl<'v> From<&'v mut str> for Value<'v> {
@@ -162,26 +203,21 @@ impl<'v> From<String> for Value<'v> {
 }
 impl<'v, 'c> From<Cell<'c>> for Value<'v> {
     fn from(cell: Cell<'c>) -> Value<'v> {
-        match cell.head {
+        let value = match cell.head() {
             Value::Symbol(h) => Value::from(h.into_owned()),
             Value::Cell(cell) => {
                 let cell = cell.as_ref().clone();
-                if !cell.head.is_nil() && cell.tail().is_nil() {
-                    match cell.tail() {
-                        Value::Symbol(h) => Value::from(h.into_owned()),
-                        Value::Nil => Value::Nil,
-                        Value::Cell(cell) => {
-                            let cell = cell.as_ref().clone();
-                            Value::from(cell)
-                        },
-                    }
-                } else if !cell.tail().is_nil() {
-                    Value::from(cell.tail())
-                } else {
-                    Value::Nil
+                match cell.head() {
+                    Value::Nil => cell.tail(),
+                    value => value,
                 }
             },
             Value::Nil => Value::Nil,
+        };
+        if value != Value::Nil {
+            value
+        } else {
+            cell.tail()
         }
     }
 }
