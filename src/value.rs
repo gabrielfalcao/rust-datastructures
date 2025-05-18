@@ -2,14 +2,13 @@ use std::borrow::{Borrow, Cow, ToOwned};
 use std::ops::Deref;
 use std::rc::Rc;
 
-use crate::{cons, Cell, ListValue};
+use crate::Cons;
 
 #[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Default)]
 pub enum Value<'v> {
     #[default]
     Nil,
     Symbol(Cow<'v, str>),
-    Cell(Rc<Cell<'v>>),
 }
 impl<'v> Value<'_> {
     pub fn nil() -> Value<'v> {
@@ -17,9 +16,7 @@ impl<'v> Value<'_> {
     }
 
     pub fn is_nil(&self) -> bool {
-        if let Value::Cell(cell) = self {
-            cell.as_ref().is_nil()
-        } else if *self == Value::Nil {
+        if *self == Value::Nil {
             true
         } else {
             false
@@ -34,7 +31,6 @@ impl std::fmt::Display for Value<'_> {
             match self {
                 Value::Nil => "nil".to_string(),
                 Value::Symbol(h) => format!("{}", h),
-                Value::Cell(c) => c.to_string(),
             }
         )
     }
@@ -47,7 +43,6 @@ impl std::fmt::Debug for Value<'_> {
             match self {
                 Value::Nil => "nil".to_string(),
                 Value::Symbol(h) => format!("{}", h),
-                Value::Cell(c) => format!("{}", c),
             }
         )
     }
@@ -89,30 +84,6 @@ mod value_tests {
         assert_debug_equal!(Value::from(value), "string");
     }
     #[test]
-    fn value_from_cell_head_symbol_tail_nil() {
-        let cell = Cell {
-            head: Value::from("head"),
-            tail: Some(Rc::new(Cell {
-                head: Value::Nil,
-                tail: None,
-            })),
-        };
-        let value = Value::from(cell.clone());
-        assert_equal!(Cell::from(value), cell);
-    }
-    #[test]
-    fn value_from_cell_head_symbol_tail_head_symbol() {
-        let cell = Cell {
-            head: Value::from("head"),
-            tail: Some(Rc::new(Cell {
-                head: Value::from("tail"),
-                tail: None,
-            })),
-        };
-        let value = Value::from(cell.clone());
-        assert_equal!(Cell::from(value), cell);
-    }
-    #[test]
     fn value_display_nil() {
         assert_display_equal!(Value::Nil, "nil");
     }
@@ -120,65 +91,6 @@ mod value_tests {
     fn value_debug_nil() {
         assert_debug_equal!(Value::Nil, "nil");
     }
-    #[test]
-    fn value_display_cell_nil() {
-        assert_display_equal!(Value::from(Cell::nil()), "nil");
-    }
-    #[test]
-    fn value_debug_cell_nil() {
-        assert_debug_equal!(Value::from(Cell::nil()), "nil");
-    }
-    #[test]
-    fn value_display_cell_head_symbol_tail_nil() {
-        assert_display_equal!(
-            Value::from(Cell {
-                head: Value::from("head"),
-                tail: None
-            }),
-            "head"
-        );
-        assert_display_equal!(
-            Value::from(Cell {
-                head: Value::from("head"),
-                tail: Some(Rc::new(Cell {
-                    head: Value::Nil,
-                    tail: None
-                }))
-            }),
-            "head"
-        );
-    }
-    // #[test]
-    // fn value_display_cell_head_symbol_tail_symbol() {
-    //     assert_display_equal!(
-    //         Value::from(Cell {
-    //             head: Value::from("head"),
-    //             tail: Some(Rc::new(Cell {
-    //                 head: Value::from("tail"),
-    //                 tail: None
-    //             }))
-    //         }),
-    //         "head tail"
-    //     );
-    //     assert_display_equal!(
-    //         Value::from(Cell {
-    //             head: Value::from("head"),
-    //             tail: Some(Rc::new(Cell {
-    //                 head: Value::from("tail"),
-    //                 tail: None
-    //             }))
-    //         }),
-    //         "head tail"
-    //     );
-
-    //     // assert_debug_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head . tail)");
-    //     // assert_display_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head tail)");
-    // }
-    // // #[test]
-    // // fn value_debug_cell_head_symbol_tail_symbol() {
-    // //     assert_equal!(cons("head", Some(Cell::from(Value::from("tail"))))), "(head . tail)");
-    // //     assert_display_equal!(Value::from(cons("head", Some(Cell::from(Value::from("tail"))))), "(head . tail)");
-    // // }
 }
 
 impl<'v> From<&'v str> for Value<'v> {
@@ -201,30 +113,11 @@ impl<'v> From<String> for Value<'v> {
         Value::Symbol(Cow::from(value))
     }
 }
-impl<'v, 'c> From<Cell<'c>> for Value<'v> {
-    fn from(cell: Cell<'c>) -> Value<'v> {
-        let value = match cell.head {
-            Value::Symbol(h) => Value::from(h.into_owned()),
-            Value::Cell(cell) => {
-                let cell = cell.as_ref().clone();
-                match cell.head {
-                    Value::Nil => cell.tail(),
-                    Value::Symbol(h) => Value::from(h.into_owned()),
-                    Value::Cell(cell) => Value::Nil,
-                }
-            },
-            Value::Nil => Value::Nil,
-        };
-        if value == Value::Nil {
-            match &cell.tail {
-                Some(cell) => {
-                    let cell = cell.as_ref().clone();
-                    Value::from(cell)
-                },
-                None => Value::Nil,
-            }
-        } else {
-            value
+impl<'v> From<Option<String>> for Value<'v> {
+    fn from(value: Option<String>) -> Value<'v> {
+        match value {
+            None => Value::Nil,
+            Some(value) => Value::from(value),
         }
     }
 }
