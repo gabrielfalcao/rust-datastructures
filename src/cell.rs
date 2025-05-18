@@ -11,7 +11,10 @@ pub struct Cell<'c> {
 }
 impl<'c> Cell<'_> {
     pub fn nil() -> Cell<'c> {
-        Cell::from(Value::Nil)
+        Cell {
+            head: Value::Nil,
+            tail: None,
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -35,7 +38,14 @@ impl<'c> Cell<'_> {
             Value::Nil => Value::Nil,
             Value::Cell(cell) => {
                 let cell = cell.as_ref().clone();
-                Value::from(cell)
+                match cell.head {
+                    Value::Symbol(h) => Value::from(h.into_owned()),
+                    Value::Nil => Value::Nil,
+                    Value::Cell(cell) => {
+                        let cell = cell.as_ref().clone();
+                        Value::from(cell)
+                    },
+                }
             },
         }
     }
@@ -59,101 +69,13 @@ impl<'c> Cell<'_> {
     }
 
     pub fn split_string(&self) -> [Option<String>; 2] {
-        let head: Option<String> =
-            if self.head.is_nil() { None } else { Some(format!("{}", self.head)) };
-        let tail: Option<String> = match &self.tail {
-            Some(cell) => {
-                let cell = cell.as_ref().clone();
-                let tail = match cell.head {
-                    Value::Symbol(head) => Some(format!("{}", head)),
-                    Value::Cell(cell) => {
-                        let head = cell.tail.clone().map(|cell| cell.as_ref().clone());
-                        match head {
-                            Some(concept) => match concept.head {
-                                Value::Nil => None,
-                                Value::Symbol(r) => Some(format!("{}", r)),
-                                Value::Cell(cell) => {
-                                    let cell = cell.as_ref().clone();
-                                    let parts = cell.split_string();
-                                    if let Some(string) = parts[0].clone() {
-                                        Some(string)
-                                    } else if let Some(string) = parts[1].clone() {
-                                        Some(string)
-                                    } else {
-                                        None
-                                    }
-                                },
-                            },
-                            None => {
-                                let parts = cell.split_string();
-                                if let Some(string) = parts[0].clone() {
-                                    Some(string)
-                                } else if let Some(string) = parts[1].clone() {
-                                    Some(string)
-                                } else {
-                                    None
-                                }
-                            },
-                        }
-                    },
-                    Value::Nil => {
-                        let head = cell.tail.clone().map(|cell| cell.as_ref().clone());
-                        match head {
-                            Some(concept) => match concept.head {
-                                Value::Nil => None,
-                                Value::Symbol(r) => Some(format!("{}", r)),
-                                Value::Cell(cell) => {
-                                    let cell = cell.as_ref().clone();
-                                    let parts = cell.split_string();
-                                    if let Some(string) = parts[0].clone() {
-                                        Some(string)
-                                    } else if let Some(string) = parts[1].clone() {
-                                        Some(string)
-                                    } else {
-                                        None
-                                    }
-                                },
-                            },
-                            None => {
-                                let parts = cell.split_string();
-                                if let Some(string) = parts[0].clone() {
-                                    Some(string)
-                                } else if let Some(string) = parts[1].clone() {
-                                    Some(string)
-                                } else {
-                                    None
-                                }
-                            },
-                        }
-                    },
-                };
-                match tail {
-                    Some(string) => Some(string),
-                    None => {
-                        let head = cell.tail.clone().map(|cell| cell.as_ref().clone());
-                        match head {
-                            Some(concept) => match concept.head {
-                                Value::Nil => None,
-                                Value::Symbol(r) => Some(format!("{}", r)),
-                                Value::Cell(cell) => {
-                                    let cell = cell.as_ref().clone();
-                                    let parts = cell.split_string();
-                                    if let Some(string) = parts[0].clone() {
-                                        Some(string)
-                                    } else if let Some(string) = parts[1].clone() {
-                                        Some(string)
-                                    } else {
-                                        None
-                                    }
-                                },
-                            },
-                            None => None,
-                        }
-                    },
-                }
-            },
-            None => None,
+        let head = self.head.clone();
+        let head: Option<String> = match head {
+            Value::Symbol(head) => Some(format!("{}", head)),
+            Value::Cell(cell) => Some("cell".to_string()),
+            Value::Nil => None,
         };
+        let tail = None;
         [head, tail]
     }
 }
@@ -164,38 +86,14 @@ impl<'c> From<Value<'c>> for Cell<'c> {
                 head: Value::from(head),
                 tail: None,
             },
-            Value::Cell(cell) => {
-                let cell = cell.as_ref().clone();
-                let head = cell.head();
-                match head {
-                    Value::Nil => match cell.tail {
-                        Some(cell) => cell.as_ref().clone(),
-                        None => Cell::nil(),
-                    },
-                    Value::Symbol(head) => Cell {
-                        head: Value::from(head),
-                        tail: None,
-                    },
-                    Value::Cell(cell) => {
-                        let cell = cell.as_ref().clone();
-                        let head = cell.head();
-                        match head {
-                            Value::Nil => match cell.tail {
-                                Some(cell) => cell.as_ref().clone(),
-                                None => Cell::nil(),
-                            },
-                            Value::Symbol(head) => Cell {
-                                head: Value::from(head),
-                                tail: None,
-                            },
-                            Value::Cell(cell) => {
-                                cell.as_ref().clone()
-                            },
-                        }
-                    },
-                }
-            },
             Value::Nil => Cell::nil(),
+            Value::Cell(cell) => {
+                // cell
+                Cell {
+                    head: Value::from(format!("{}:{}", file!(), line!())),
+                    tail: None,
+                }
+            }
         }
     }
 }

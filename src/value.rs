@@ -203,21 +203,28 @@ impl<'v> From<String> for Value<'v> {
 }
 impl<'v, 'c> From<Cell<'c>> for Value<'v> {
     fn from(cell: Cell<'c>) -> Value<'v> {
-        let value = match cell.head() {
+        let value = match cell.head {
             Value::Symbol(h) => Value::from(h.into_owned()),
             Value::Cell(cell) => {
                 let cell = cell.as_ref().clone();
-                match cell.head() {
+                match cell.head {
                     Value::Nil => cell.tail(),
-                    value => value,
+                    Value::Symbol(h) => Value::from(h.into_owned()),
+                    Value::Cell(cell) => Value::Nil,
                 }
             },
             Value::Nil => Value::Nil,
         };
-        if value != Value::Nil {
-            value
+        if value == Value::Nil {
+            match &cell.tail {
+                Some(cell) => {
+                    let cell = cell.as_ref().clone();
+                    Value::from(cell)
+                },
+                None => Value::Nil,
+            }
         } else {
-            cell.tail()
+            value
         }
     }
 }
