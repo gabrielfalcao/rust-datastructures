@@ -42,7 +42,7 @@ impl std::fmt::Debug for Value<'_> {
             "{}",
             match self {
                 Value::Nil => "nil".to_string(),
-                Value::Symbol(h) => format!("{}", h),
+                Value::Symbol(h) => format!("'{}", h),
             }
         )
     }
@@ -63,7 +63,7 @@ mod value_tests {
         let value = "static-str";
         assert_display_equal!(Value::from(value), "static-str");
         let value = "static-str";
-        assert_debug_equal!(Value::from(value), "static-str");
+        assert_debug_equal!(Value::from(value), "'static-str");
     }
     #[test]
     fn value_from_str() {
@@ -72,7 +72,7 @@ mod value_tests {
         let value = "str".to_string().leak();
         assert_display_equal!(Value::from(value), "str");
         let value = "str".to_string().leak();
-        assert_debug_equal!(Value::from(value), "str");
+        assert_debug_equal!(Value::from(value), "'str");
     }
     #[test]
     fn value_from_string() {
@@ -81,7 +81,7 @@ mod value_tests {
         let value = "string".to_string();
         assert_display_equal!(Value::from(value), "string");
         let value = "string".to_string();
-        assert_debug_equal!(Value::from(value), "string");
+        assert_debug_equal!(Value::from(value), "'string");
     }
     #[test]
     fn value_display_nil() {
