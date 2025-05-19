@@ -37,10 +37,8 @@ impl<'c> Cell<'c> {
     }
 
     pub fn add_value(&mut self, value: Value<'c>) {
-        dbg!(&self);
         if self.tail.is_null() {
             let mut new = Cell::new(value);
-            dbg!(&self, &new);
             unsafe {
                 // self.tail = std::ptr::dangling_mut::<Cell>();
                 // dbg!(&self, &new);
@@ -49,8 +47,19 @@ impl<'c> Cell<'c> {
                 self.tail = new_tail;
                 dbg!(&self, &self.tail());
             }
-            dbg!(&self, &self.tail());
+            match self.tail() {
+                Some(tail) => {
+                    dbg!(&tail, &self);
+                },
+                None => {
+                    dbg!(&self);
+                },
+            }
         }
+    }
+
+    pub fn addr(&self) -> String {
+        color_addr(self)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -68,7 +77,7 @@ impl<'c> Cell<'c> {
         len
     }
 
-    pub fn tail(&self) -> Option<Cell<'c>> {
+    pub fn tail(&self) -> Option<&'c Cell<'c>> {
         // if self.tail.is_null() {
         //     None
         // } else {
@@ -80,7 +89,7 @@ impl<'c> Cell<'c> {
         } else {
             unsafe {
                 if let Some(tail) = self.tail.as_ref() {
-                    Some(tail.clone())
+                    Some(tail)
                 } else {
                     None
                 }
@@ -101,8 +110,16 @@ impl std::fmt::Debug for Cell<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "\nCell@\x1b[1;38;5;49m{:p}\x1b[0m[\x1b[1;48;5;136m\x1b[1;38;5;16m{}\x1b[0m] -> {}\x1b[0m\n",
-            &self,
+            "\nCell@\x1b[1;38;5;49m{}\x1b[0m[\x1b[1;48;5;{}m\x1b[1;38;5;16m{}\x1b[0m] -> {}\x1b[0m\n",
+            &self.addr(),
+            match &self.head {
+                Value::Nil => 196,
+                Value::Symbol(symbol) => match symbol.to_string().as_str() {
+                    "head" => 136,
+                    "tail" => 33,
+                    _ => 196,
+                },
+            },
             &self.head,
             {
                 let bg = match self.tail.addr() {
@@ -269,3 +286,21 @@ mod cell_tests {
 //         assert_display_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head tail)");
 //     }
 // }
+
+pub fn color_addr<T: Sized>(t: &T) -> String {
+    let addr = std::ptr::from_ref(t).addr();
+    let fg = if addr > 0 {
+        addr % 255
+    } else {
+        16
+    };
+    let bg = match fg {
+        0 | 8 | 16 .. 24 | 232..237 => {
+            255
+        },
+        _ => {
+            16
+        }
+    };
+    format!("\x1b[1;48;5;{}m\x1b[1;38;5;{}m{}\x1b[0m", bg, fg, addr)
+}
