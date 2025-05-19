@@ -1,6 +1,5 @@
 #![allow(unused)]
-// pub mod list;
-// pub use list::{car, cdr, List};
+
 pub mod traits;
 pub use traits::ListValue;
 pub mod cons;

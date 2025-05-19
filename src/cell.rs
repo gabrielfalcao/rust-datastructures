@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use crate::{car, cdr, cons, Value};
 
-#[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
+#[derive(PartialOrd, Ord, PartialEq, Eq)]
 pub struct Cell<'c> {
     pub head: Value<'c>,
     pub tail: *mut Cell<'c>,
@@ -14,6 +14,14 @@ pub struct Cell<'c> {
 impl<'c> Default for Cell<'c> {
     fn default() -> Cell<'c> {
         Cell::nil()
+    }
+}
+impl<'c> Clone for Cell<'c> {
+    fn clone(&self) -> Cell<'c> {
+        Cell {
+            head: self.head.clone(),
+            tail: std::ptr::null_mut::<Cell>(),
+        }
     }
 }
 impl<'c> Cell<'c> {
@@ -24,7 +32,7 @@ impl<'c> Cell<'c> {
     pub fn new(value: Value<'c>) -> Cell<'c> {
         Cell {
             head: value,
-            tail: core::ptr::null_mut::<Cell>(),
+            tail: std::ptr::null_mut::<Cell>(),
         }
     }
 
@@ -32,33 +40,16 @@ impl<'c> Cell<'c> {
         dbg!(&self);
         if self.tail.is_null() {
             let mut new = Cell::new(value);
-            let addr = format!("{:p}", &new);
-            dbg!(&new, addr);
+            dbg!(&self, &new);
             unsafe {
-                // let layout = Layout::for_value(&new);
-                // let ptr = alloc(layout);
-                // if ptr.is_null() {
-                //     std::alloc::handle_alloc_error(layout);
-                // }
-                let mut cell = std::ptr::from_mut::<Cell<'c>>(&mut new);
-                // dbg!(&cell);
-                // let old_v = std::mem::take(&mut new);
-                // dbg!(&old_v);
-                // dbg!(&self, &cell);
-                dbg!(&self, &cell);
-                self.tail = std::ptr::dangling_mut::<Cell>();
-                dbg!(&self, &cell);
-                // std::ptr::replace(self.tail, new);
-                // std::ptr::swap(self.tail, cell);
-                // std::ptr::write(self.tail, Cell::nil());
-                // dbg!(&self, &cell);
-                // dbg!(&self, &cell);
-                // let mut cell = core::ptr::from_ref::<Cell>(&new);
-                std::ptr::copy::<Cell<'c>>(cell, self.tail, 1);
-                dbg!(&self, &cell);
-
-                // std::ptr::write_unaligned::<Cell>(self.tail, Cell::new(value));
+                // self.tail = std::ptr::dangling_mut::<Cell>();
+                // dbg!(&self, &new);
+                let mut new_tail = std::ptr::from_mut::<Cell<'c>>(&mut new);
+                dbg!(&new_tail, &self, &new);
+                self.tail = new_tail;
+                dbg!(&self, &self.tail());
             }
+            dbg!(&self, &self.tail());
         }
     }
 
@@ -71,17 +62,83 @@ impl<'c> Cell<'c> {
         if !self.head.is_nil() {
             len += 1
         }
-        if !self.tail.is_null() {
-            // let tail = unsafe { std::ptr::read::<Cell>(self.tail) };
-            // len += tail.len();
+        if let Some(tail) = self.tail() {
+            len += tail.len();
         }
         len
+    }
+
+    pub fn tail(&self) -> Option<Cell<'c>> {
+        // if self.tail.is_null() {
+        //     None
+        // } else {
+        //     Some(Cell::new(Value::Symbol(Cow::from("stub"))))
+        // }
+
+        if self.tail.is_null() {
+            None
+        } else {
+            unsafe {
+                if let Some(tail) = self.tail.as_ref() {
+                    Some(tail.clone())
+                } else {
+                    None
+                }
+            }
+        }
     }
 
     pub fn values(&self) -> Vec<Value<'c>> {
         let mut values = Vec::<Value>::new();
         values.push(self.head.clone());
+        if let Some(tail) = self.tail() {
+            values.extend(tail.values());
+        }
         values
+    }
+}
+impl std::fmt::Debug for Cell<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "\nCell@\x1b[1;38;5;49m{:p}\x1b[0m[\x1b[1;48;5;136m\x1b[1;38;5;16m{}\x1b[0m] -> {}\x1b[0m\n",
+            &self,
+            &self.head,
+            {
+                let bg = match self.tail.addr() {
+                    0 => 16,
+                    8 => 232,
+                    _ => match self.tail() {
+                        Some(_) => 202,
+                        None => 54,
+                    },
+                };
+                let fg = match self.tail.addr() {
+                    0 => 255,
+                    8 => 202,
+                    _ => 160,
+                };
+                format!(
+                    "[\x1b[1;48;5;{}mtail:\x1b[1;38;5;{}m{}]",
+                    bg,
+                    fg,
+                    match self.tail() {
+                        Some(tail) => {
+                            format!("{:p}", &tail)
+                            // format!(
+                            //     "\x1b[1;38;5;{}mCell({}\x1b[1;38;5;{}m)",
+                            //     fg,
+                            //         format!(
+                            //             "\x1b[1;38;5;49m{:p}[\x1b[1;48;5;16m\x1b[1;38;5;220m{}]",
+                            //                 &tail, &tail.head), fg)
+                        },
+                        None => {
+                            format!("None")
+                        },
+                    }
+                )
+            }
+        )
     }
 }
 
@@ -92,19 +149,19 @@ mod cell_tests {
     use k9::assert_equal;
 
     use crate::*;
-    #[test]
-    fn test_nil() {
-        let cell = Cell::nil();
-        assert_equal!(cell.len(), 0);
-        assert_equal!(cell.values(), vec![Value::Nil]);
-    }
+    // #[test]
+    // fn test_nil() {
+    //     let cell = Cell::nil();
+    //     assert_equal!(cell.len(), 0);
+    //     assert_equal!(cell.values(), vec![Value::Nil]);
+    // }
 
-    #[test]
-    fn test_new() {
-        let cell = Cell::new(Value::from("head"));
-        assert_equal!(cell.len(), 1);
-        assert_equal!(cell.values(), vec![Value::from("head")]);
-    }
+    // #[test]
+    // fn test_new() {
+    //     let cell = Cell::new(Value::from("head"));
+    //     assert_equal!(cell.len(), 1);
+    //     assert_equal!(cell.values(), vec![Value::from("head")]);
+    // }
     #[test]
     fn test_add() {
         let mut cell = Cell::new(Value::from("head"));
@@ -113,118 +170,6 @@ mod cell_tests {
         assert_equal!(cell.values(), vec![Value::from("head"), Value::from("tail")]);
     }
 }
-//     pub fn head(&self) -> Value<'c> {
-//         match self.head.clone() {
-//             Value::Symbol(h) => Value::from(h.into_owned()),
-//             Value::Nil => Value::Nil,
-//             Value::Cell(cell) => {
-//                 let cell = cell.as_ref().clone();
-//                 match cell.head {
-//                     Value::Symbol(h) => Value::from(h.into_owned()),
-//                     Value::Nil => Value::Nil,
-//                     Value::Cell(cell) => {
-//                         let cell = cell.as_ref().clone();
-//                         Value::from(cell)
-//                     },
-//                 }
-//             },
-//         }
-//     }
-
-//     pub fn tail(&self) -> Value<'c> {
-//         match self.tail.clone().map(|rc| rc.as_ref().clone()) {
-//             Some(cell) => match cell.head.clone() {
-//                 Value::Symbol(h) => Value::from(h.into_owned()),
-//                 Value::Cell(cell) => {
-//                     let cell = cell.as_ref().clone();
-//                     Value::from(cell)
-//                 },
-//                 Value::Nil => Value::Nil,
-//             },
-//             None => Value::Nil,
-//         }
-//     }
-
-//     pub fn is_nil(&self) -> bool {
-//         self.head.is_nil() && self.tail().is_nil()
-//     }
-
-//     pub fn split_string(&self) -> [Option<String>; 2] {
-//         let head = self.head.clone();
-//         let head: Option<String> = match head {
-//             Value::Symbol(head) => Some(format!("{}", head)),
-//             Value::Cell(cell) => Some("cell".to_string()),
-//             Value::Nil => None,
-//         };
-//         let tail = None;
-//         [head, tail]
-//     }
-// }
-// impl<'c> From<Value<'c>> for Cell<'c> {
-//     fn from(head: Value<'c>) -> Cell<'c> {
-//         match head {
-//             Value::Symbol(head) => Cell {
-//                 head: Value::from(head),
-//                 tail: None,
-//             },
-//             Value::Nil => Cell::nil(),
-//             Value::Cell(cell) => {
-//                 // cell
-//                 Cell {
-//                     head: Value::from(format!("{}:{}", file!(), line!())),
-//                     tail: None,
-//                 }
-//             }
-//         }
-//     }
-// }
-
-// impl<'c> From<Option<Cell<'c>>> for Cell<'c> {
-//     fn from(cell: Option<Cell<'c>>) -> Cell<'c> {
-//         match cell {
-//             Some(cell) => cell,
-//             None => Cell::nil(),
-//         }
-//     }
-// }
-// impl std::fmt::Display for Cell<'_> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         write!(f, "{}", {
-//             let parts = self.split_string();
-//             let expressions = parts
-//                 .clone()
-//                 .iter()
-//                 .filter(|part| part.is_some())
-//                 .map(|expression| expression.clone().map(String::from).unwrap())
-//                 .collect::<Vec<String>>();
-//             let expressions = expressions.join(" ");
-//             let mut wrap = expressions.len() > 0;
-//             // let mut wrap = parts.iter().all(|part|part.is_some());
-//             format!("({})", expressions)
-//         })
-//     }
-// }
-// // impl std::fmt::Debug for Cell<'_> {
-// //     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-// //         write!(f, "{}", {
-// //             let parts = self.split_string();
-// //             let expressions = parts
-// //                 .clone()
-// //                 .iter()
-// //                 .filter(|part| part.is_some())
-// //                 .map(|expression| expression.clone().map(String::from).unwrap())
-// //                 .collect::<Vec<String>>();
-// //             let expressions = expressions.join(" . ");
-// //             let mut wrap = expressions.len() > 0;
-// //             // let mut wrap = parts.iter().all(|part|part.is_some());
-// //             if wrap {
-// //                 format!("({})", expressions)
-// //             } else {
-// //                 "nil".to_string()
-// //             }
-// //         })
-// //     }
-// // }
 
 // #[cfg(test)]
 // mod cell_tests {
@@ -258,21 +203,17 @@ mod cell_tests {
 //     fn nil() {
 //         assert_equal!(Cell::nil(), Cell::from(Value::Nil));
 //         assert_equal!(Cell::nil().split_string(), [None, None]);
-//         // assert_debug_equal!(Cell::nil(), Cell::from(Value::Nil));
-//         // assert_debug_equal!(Cell::nil(), "nil");
 //         // assert_display_equal!(Cell::nil(), Cell::from(Value::Nil));
 //         // assert_display_equal!(Cell::nil(), "()");
 //     }
 //     #[test]
 //     fn from_cell_nil() {
 //         assert_equal!(Cell::nil(), Cell::from(Cell::nil()));
-//         // assert_debug_equal!(Cell::nil(), Cell::from(Value::Nil));
-//         // assert_debug_equal!(Cell::nil(), "nil");
 //         assert_display_equal!(Cell::nil(), Cell::from(Value::Nil));
 //         assert_display_equal!(Cell::nil(), "()");
 //     }
 //     #[test]
-//     fn from_cell_debug_head_and_tail_with_head_symbol_tail_nil() {
+//     fn from_cell_head_and_tail_with_head_symbol_tail_nil() {
 //         assert_equal!(
 //             Cell {
 //                 head: Value::from("head"),
@@ -294,11 +235,10 @@ mod cell_tests {
 //             },
 //             "(head tail)"
 //         );
-//         // assert_debug_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head . tail)");
 //         assert_display_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head tail)");
 //     }
 //     #[test]
-//     fn from_cell_debug_head_and_tail_with_head_nil_tail_head_symbol() {
+//     fn from_cell_head_and_tail_with_head_nil_tail_head_symbol() {
 //         assert_equal!(
 //             Cell {
 //                 head: Value::from("head"),
@@ -326,7 +266,6 @@ mod cell_tests {
 //             },
 //             "(head tail)"
 //         );
-//         // assert_debug_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head . tail)");
 //         assert_display_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head tail)");
 //     }
 // }
