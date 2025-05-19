@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::Value;
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Default, Debug)]
 pub enum Cons<'c> {
-    Cell(Value<'c>, Rc<Option<Cons<'c>>>),
+    Cell(Value<'c>, Rc<Cons<'c>>),
     #[default]
     Empty,
 }
@@ -12,7 +12,7 @@ impl<'c> Cons<'c> {
     pub fn new(head: Value<'c>) -> Cons<'c> {
         match head {
             Value::Nil => Cons::Empty,
-            _ => Cons::Cell(head, Rc::new(None)),
+            _ => Cons::Cell(head, Rc::new(Cons::Empty)),
         }
     }
 
@@ -23,8 +23,7 @@ impl<'c> Cons<'c> {
     pub fn len(&self) -> usize {
         match self {
             Cons::Empty => 0,
-            Cons::Cell(_, tail) =>
-                1 + if let Some(tail) = tail.as_ref().clone() { tail.len() } else { 0 },
+            Cons::Cell(_, tail) => 1 + tail.as_ref().len(),
         }
     }
 
@@ -35,7 +34,7 @@ impl<'c> Cons<'c> {
                 // dbg!(&head, &tail);
                 match head {
                     Value::Nil => {
-                        let mut tail = tail.as_ref().clone().unwrap_or_default();
+                        let mut tail = tail.as_ref().clone();
                         match tail {
                             Cons::Empty => Value::Nil,
                             Cons::Cell(head, tail) => {
@@ -43,7 +42,7 @@ impl<'c> Cons<'c> {
                                 if !head.is_nil() {
                                     head
                                 } else {
-                                    let mut tail = tail.as_ref().clone().unwrap_or_default();
+                                    let mut tail = tail.as_ref().clone();
                                     match tail {
                                         Cons::Empty => Value::Nil,
                                         Cons::Cell(head, tail) => {
@@ -63,12 +62,12 @@ impl<'c> Cons<'c> {
             Cons::Empty => Cons::Empty,
             Cons::Cell(_, tail) => {
                 // dbg!(&tail);
-                let tail = tail.as_ref().clone().unwrap_or_default();
+                let tail = tail.as_ref().clone();
                 match tail {
                     Cons::Empty => Cons::Empty,
                     Cons::Cell(_, tail) => {
                         dbg!(&tail);
-                        let tail = tail.as_ref().clone().unwrap_or_default();
+                        let tail = tail.as_ref().clone();
                         match tail {
                             Cons::Empty => Cons::Empty,
                             _ => tail.head(),
@@ -85,16 +84,15 @@ impl<'c> Cons<'c> {
             head => {
                 dbg!(&head, &tail);
                 match tail {
-                    Cons::Empty => return Cons::Cell(head, Rc::new(None)),
-                    ref cell => {
+                    Cons::Empty => return Cons::Cell(head, Rc::new(Cons::Empty)),
+                    ref cell =>
                         if let Cons::Cell(value, _) = cell {
                             if head == *value {
-                                return cell.clone()
+                                return cell.clone();
                             }
-                        }
-                    },
+                        },
                 }
-                Cons::Cell(head.clone(), Rc::new(Some(tail)))
+                Cons::Cell(head.clone(), Rc::new(tail))
             },
         }
     }
@@ -113,20 +111,20 @@ impl<'v> From<Cons<'v>> for Value<'v> {
                 if !head.is_nil() {
                     return head;
                 }
-                let tail = tail.as_ref().clone().unwrap_or_default();
+                let tail = tail.as_ref().clone();
 
                 if let Cons::Cell(head, tail) = tail {
                     if !head.is_nil() {
                         return head;
                     } else {
-                        let tail = tail.as_ref().clone().unwrap_or_default();
+                        let tail = tail.as_ref().clone();
                         match tail {
                             Cons::Empty => Value::Nil,
                             Cons::Cell(head, tail) =>
                                 if !head.is_nil() {
                                     return head;
                                 } else {
-                                    let tail = tail.as_ref().clone().unwrap_or_default();
+                                    let tail = tail.as_ref().clone();
                                     return Value::from(tail);
                                 },
                         }
@@ -149,11 +147,12 @@ impl std::fmt::Display for Cons<'_> {
                     if !head.is_nil() {
                         expressions.push(head.to_string());
                     }
-                    if let Some(tail) = tail.as_ref().clone() {
-                        if tail.len() > 0 {
-                            expressions.push(tail.to_string());
-                        }
+                    let tail = tail.as_ref().clone();
+
+                    if tail.len() > 0 {
+                        expressions.push(tail.to_string());
                     }
+
                     let wrap = expressions.len() > 1;
                     let expressions = expressions.join(" ");
                     if wrap {
@@ -230,43 +229,43 @@ mod cons_tests {
     #[test]
     fn cons_head() {
         assert_equal!(
-            Cons::Cell(Value::from("head"), Rc::new(None)).head(),
-            Cons::Cell(Value::from("head"), Rc::new(None))
+            Cons::Cell(Value::from("head"), Rc::new(Cons::Empty)).head(),
+            Cons::Cell(Value::from("head"), Rc::new(Cons::Empty))
         );
         assert_equal!(
-            Cons::Cell(Value::Nil, Rc::new(Some(Cons::Cell(Value::from("head"), Rc::new(None)))))
+            Cons::Cell(Value::Nil, Rc::new(Cons::Cell(Value::from("head"), Rc::new(Cons::Empty))))
                 .head(),
-            Cons::Cell(Value::from("head"), Rc::new(None))
+            Cons::Cell(Value::from("head"), Rc::new(Cons::Empty))
         );
         assert_equal!(
             Cons::Cell(
                 Value::Nil,
-                Rc::new(Some(Cons::Cell(
+                Rc::new(Cons::Cell(
                     Value::Nil,
-                    Rc::new(Some(Cons::Cell(
+                    Rc::new(Cons::Cell(
                         Value::from("head"),
-                        Rc::new(Some(Cons::Cell(
+                        Rc::new(Cons::Cell(
                             Value::Nil,
-                            Rc::new(Some(Cons::Cell(Value::from("tail"), Rc::new(None))))
-                        )))
-                    )))
-                )))
+                            Rc::new(Cons::Cell(Value::from("tail"), Rc::new(Cons::Empty)))
+                        ))
+                    ))
+                ))
             )
             .head(),
             Cons::Cell(
                 Value::from("head"),
-                Rc::new(Some(Cons::Cell(Value::from("tail"), Rc::new(None))))
+                Rc::new(Cons::Cell(Value::from("tail"), Rc::new(Cons::Empty)))
             )
         );
         assert_equal!(
             Cons::Cell(
                 Value::from("head"),
-                Rc::new(Some(Cons::Cell(Value::from("tail"), Rc::new(None))))
+                Rc::new(Cons::Cell(Value::from("tail"), Rc::new(Cons::Empty)))
             )
             .head(),
             Cons::Cell(
                 Value::from("head"),
-                Rc::new(Some(Cons::Cell(Value::from("tail"), Rc::new(None))))
+                Rc::new(Cons::Cell(Value::from("tail"), Rc::new(Cons::Empty)))
             )
         );
     }
