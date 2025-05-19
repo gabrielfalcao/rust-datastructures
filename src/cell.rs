@@ -3,12 +3,9 @@ use std::borrow::{Borrow, Cow, ToOwned};
 use std::ops::Deref;
 use std::ptr::NonNull;
 use std::rc::Rc;
-
 #[rustfmt::skip]
 use crate::{color_addr, color_bg, color_bgfg, color_fg, colorize, reset};
-
 use crate::{car, cdr, cons, Value};
-
 #[derive(PartialOrd, Ord, PartialEq, Eq)]
 pub struct Cell<'c> {
     pub head: Value<'c>,
@@ -40,30 +37,16 @@ impl<'c> Cell<'c> {
     }
 
     pub fn add(&mut self, new: &Cell<'c>) {
-        // crate::step!();
         if self.tail.is_null() {
             unsafe {
-                // self.tail = std::ptr::dangling_mut::<Cell>();
-
-                // dbg!(&self, &new);
                 let mut new_tail = std::ptr::from_ref::<Cell<'c>>(new);
-
-                // dbg!(&new_tail, &self, &new);
                 self.tail = new_tail;
-                // dbg!(&self, &self.tail());
             }
         }
-        // crate::step!();
-
         match self.tail() {
-            Some(tail) => {
-                // dbg!(&tail, &self);
-            },
-            None => {
-                // dbg!(&self);
-            },
+            Some(tail) => {},
+            None => {},
         }
-        // crate::step!();
     }
 
     pub fn addr(&self) -> String {
@@ -86,19 +69,11 @@ impl<'c> Cell<'c> {
     }
 
     pub fn tail(&self) -> Option<&'c Cell<'c>> {
-        // if self.tail.is_null() {
-        //     None
-        // } else {
-        //     Some(Cell::new(Value::Symbol(Cow::from("stub"))))
-        // }
-
         if self.tail.is_null() {
             None
         } else {
             unsafe {
                 if let Some(tail) = self.tail.as_ref() {
-                    // crate::step!();
-                    // dbg!(&tail);
                     Some(tail)
                 } else {
                     None
@@ -111,8 +86,6 @@ impl<'c> Cell<'c> {
         let mut values = Vec::<Value>::new();
         values.push(self.head.clone());
         if let Some(tail) = self.tail() {
-            // crate::step!();
-
             values.extend(tail.values());
         }
         values
@@ -154,12 +127,6 @@ impl std::fmt::Debug for Cell<'_> {
                     match self.tail() {
                         Some(tail) => {
                             color_addr(tail)
-                            // format!(
-                            //     "\x1b[1;38;5;{}mCell({}\x1b[1;38;5;{}m)",
-                            //     fg,
-                            //         format!(
-                            //             "\x1b[1;38;5;49m{:p}[\x1b[1;48;5;16m\x1b[1;38;5;220m{}]",
-                            //                 &tail, &tail.head), fg)
                         },
                         None => {
                             format!("None")
@@ -170,7 +137,6 @@ impl std::fmt::Debug for Cell<'_> {
         )
     }
 }
-
 #[cfg(test)]
 mod cell_tests {
     use std::rc::Rc;
@@ -178,128 +144,33 @@ mod cell_tests {
     use k9::assert_equal;
 
     use crate::*;
-    // #[test]
-    // fn test_nil() {
-    //     let cell = Cell::nil();
-    //     assert_equal!(cell.len(), 0);
-    //     assert_equal!(cell.values(), vec![Value::Nil]);
-    // }
-
-    // #[test]
-    // fn test_new() {
-    //     let cell = Cell::new(Value::from("head"));
-    //     assert_equal!(cell.len(), 1);
-    //     assert_equal!(cell.values(), vec![Value::from("head")]);
-    // }
     #[test]
-    fn test_add() {
+    fn test_add_when_tail_is_null() {
         let mut head = Cell::new(Value::from("head"));
         let mut cell = Cell::new(Value::from("cell"));
+
+        assert_equal!(cell.len(), 1);
+        assert_equal!(cell.values(), vec![Value::from("cell")]);
+
         head.add(&cell);
+
         assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell")]);
         assert_equal!(head.len(), 2);
+
         let mut tail = Cell::new(Value::from("tail"));
+        assert_equal!(tail.len(), 1);
+        assert_equal!(tail.values(), vec![Value::from("tail")]);
+
         cell.add(&tail);
-        assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell"), Value::from("tail")]);
+
+        assert_equal!(
+            head.values(),
+            vec![Value::from("head"), Value::from("cell"), Value::from("tail")]
+        );
         assert_equal!(head.len(), 3);
+        assert_equal!(cell.values(), vec![Value::from("cell"), Value::from("tail")]);
+        assert_equal!(cell.len(), 2);
+        assert_equal!(tail.values(), vec![Value::from("tail")]);
+        assert_equal!(tail.len(), 1);
     }
 }
-
-// #[cfg(test)]
-// mod cell_tests {
-//     use std::rc::Rc;
-
-//     use k9::assert_equal;
-
-//     use crate::*;
-
-//     #[test]
-//     fn from_value_nil() {
-//         assert_equal!(
-//             Cell::from(Value::Nil),
-//             Cell {
-//                 head: Value::Nil,
-//                 tail: None
-//             }
-//         );
-//     }
-//     #[test]
-//     fn from_value_symbol() {
-//         assert_equal!(
-//             Cell::from(Value::from("symbol")),
-//             Cell {
-//                 head: Value::from("symbol"),
-//                 tail: None
-//             }
-//         );
-//     }
-//     #[test]
-//     fn nil() {
-//         assert_equal!(Cell::nil(), Cell::from(Value::Nil));
-//         assert_equal!(Cell::nil().split_string(), [None, None]);
-//         // assert_display_equal!(Cell::nil(), Cell::from(Value::Nil));
-//         // assert_display_equal!(Cell::nil(), "()");
-//     }
-//     #[test]
-//     fn from_cell_nil() {
-//         assert_equal!(Cell::nil(), Cell::from(Cell::nil()));
-//         assert_display_equal!(Cell::nil(), Cell::from(Value::Nil));
-//         assert_display_equal!(Cell::nil(), "()");
-//     }
-//     #[test]
-//     fn from_cell_head_and_tail_with_head_symbol_tail_nil() {
-//         assert_equal!(
-//             Cell {
-//                 head: Value::from("head"),
-//                 tail: Some(Rc::new(Cell {
-//                     head: Value::from("tail"),
-//                     tail: None
-//                 }))
-//             }
-//             .split_string(),
-//             [Some("head".to_string()), Some("tail".to_string()),]
-//         );
-//         assert_display_equal!(
-//             Cell {
-//                 head: Value::from("head"),
-//                 tail: Some(Rc::new(Cell {
-//                     head: Value::from("tail"),
-//                     tail: None
-//                 }))
-//             },
-//             "(head tail)"
-//         );
-//         assert_display_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head tail)");
-//     }
-//     #[test]
-//     fn from_cell_head_and_tail_with_head_nil_tail_head_symbol() {
-//         assert_equal!(
-//             Cell {
-//                 head: Value::from("head"),
-//                 tail: Some(Rc::new(Cell {
-//                     head: Value::Nil,
-//                     tail: Some(Rc::new(Cell {
-//                         head: Value::from("tail"),
-//                         tail: None
-//                     }))
-//                 }))
-//             }
-//             .split_string(),
-//             [Some("head".to_string()), Some("tail".to_string()),]
-//         );
-//         assert_display_equal!(
-//             Cell {
-//                 head: Value::from("head"),
-//                 tail: Some(Rc::new(Cell {
-//                     head: Value::Nil,
-//                     tail: Some(Rc::new(Cell {
-//                         head: Value::from("tail"),
-//                         tail: None
-//                     }))
-//                 }))
-//             },
-//             "(head tail)"
-//         );
-//         assert_display_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head tail)");
-//     }
-// }
