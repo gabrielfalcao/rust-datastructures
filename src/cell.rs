@@ -12,7 +12,7 @@ use crate::{car, cdr, cons, Value};
 #[derive(PartialOrd, Ord, PartialEq, Eq)]
 pub struct Cell<'c> {
     pub head: Value<'c>,
-    pub tail: *mut Cell<'c>,
+    pub tail: *const Cell<'c>,
 }
 impl<'c> Default for Cell<'c> {
     fn default() -> Cell<'c> {
@@ -23,7 +23,7 @@ impl<'c> Clone for Cell<'c> {
     fn clone(&self) -> Cell<'c> {
         Cell {
             head: self.head.clone(),
-            tail: std::ptr::null_mut::<Cell>(),
+            tail: std::ptr::null::<Cell>(),
         }
     }
 }
@@ -35,46 +35,32 @@ impl<'c> Cell<'c> {
     pub fn new(value: Value<'c>) -> Cell<'c> {
         Cell {
             head: value,
-            tail: std::ptr::null_mut::<Cell>(),
+            tail: std::ptr::null::<Cell>(),
         }
     }
 
-    pub fn add_value(&mut self, value: Value<'c>) {
-        self.add(Cell::new(value));
-        // crate::step!();
-        match self.tail() {
-            Some(tail) => {
-                dbg!(&tail, &self);
-            },
-            None => {
-                dbg!(&self);
-            },
-        }
-        // crate::step!();
-    }
-
-    pub fn add(&mut self, mut new: Cell<'c>) {
+    pub fn add(&mut self, new: &Cell<'c>) {
         // crate::step!();
         if self.tail.is_null() {
             unsafe {
                 // self.tail = std::ptr::dangling_mut::<Cell>();
 
-                dbg!(&self, &new);
-                let mut new_tail = std::ptr::from_mut::<Cell<'c>>(&mut new);
+                // dbg!(&self, &new);
+                let mut new_tail = std::ptr::from_ref::<Cell<'c>>(new);
 
-                dbg!(&new_tail, &self, &new);
+                // dbg!(&new_tail, &self, &new);
                 self.tail = new_tail;
-                dbg!(&self, &self.tail());
+                // dbg!(&self, &self.tail());
             }
         }
         // crate::step!();
 
         match self.tail() {
             Some(tail) => {
-                dbg!(&tail, &self);
+                // dbg!(&tail, &self);
             },
             None => {
-                dbg!(&self);
+                // dbg!(&self);
             },
         }
         // crate::step!();
@@ -112,7 +98,7 @@ impl<'c> Cell<'c> {
             unsafe {
                 if let Some(tail) = self.tail.as_ref() {
                     // crate::step!();
-                    dbg!(&tail);
+                    // dbg!(&tail);
                     Some(tail)
                 } else {
                     None
@@ -209,12 +195,13 @@ mod cell_tests {
     fn test_add() {
         let mut head = Cell::new(Value::from("head"));
         let mut cell = Cell::new(Value::from("cell"));
-        head.add(cell.clone());
+        head.add(&cell);
         assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell")]);
         assert_equal!(head.len(), 2);
-        // cell.add(Cell::new(Value::from("tail")));
-        // assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell"), Value::from("tail")]);
-        // assert_equal!(head.len(), 3);
+        let mut tail = Cell::new(Value::from("tail"));
+        cell.add(&tail);
+        assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell"), Value::from("tail")]);
+        assert_equal!(head.len(), 3);
     }
 }
 
