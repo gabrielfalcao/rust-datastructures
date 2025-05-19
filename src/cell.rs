@@ -4,6 +4,9 @@ use std::ops::Deref;
 use std::ptr::NonNull;
 use std::rc::Rc;
 
+#[rustfmt::skip]
+use crate::{color_addr, color_bg, color_bgfg, color_fg, colorize, reset};
+
 use crate::{car, cdr, cons, Value};
 
 #[derive(PartialOrd, Ord, PartialEq, Eq)]
@@ -37,25 +40,44 @@ impl<'c> Cell<'c> {
     }
 
     pub fn add_value(&mut self, value: Value<'c>) {
+        self.add(Cell::new(value));
+        // crate::step!();
+        match self.tail() {
+            Some(tail) => {
+                dbg!(&tail, &self);
+            },
+            None => {
+                dbg!(&self);
+            },
+        }
+        // crate::step!();
+    }
+
+    pub fn add(&mut self, mut new: Cell<'c>) {
+        // crate::step!();
         if self.tail.is_null() {
-            let mut new = Cell::new(value);
             unsafe {
                 // self.tail = std::ptr::dangling_mut::<Cell>();
-                // dbg!(&self, &new);
+
+                dbg!(&self, &new);
                 let mut new_tail = std::ptr::from_mut::<Cell<'c>>(&mut new);
+
                 dbg!(&new_tail, &self, &new);
                 self.tail = new_tail;
                 dbg!(&self, &self.tail());
             }
-            match self.tail() {
-                Some(tail) => {
-                    dbg!(&tail, &self);
-                },
-                None => {
-                    dbg!(&self);
-                },
-            }
         }
+        // crate::step!();
+
+        match self.tail() {
+            Some(tail) => {
+                dbg!(&tail, &self);
+            },
+            None => {
+                dbg!(&self);
+            },
+        }
+        // crate::step!();
     }
 
     pub fn addr(&self) -> String {
@@ -89,6 +111,8 @@ impl<'c> Cell<'c> {
         } else {
             unsafe {
                 if let Some(tail) = self.tail.as_ref() {
+                    // crate::step!();
+                    dbg!(&tail);
                     Some(tail)
                 } else {
                     None
@@ -101,6 +125,8 @@ impl<'c> Cell<'c> {
         let mut values = Vec::<Value>::new();
         values.push(self.head.clone());
         if let Some(tail) = self.tail() {
+            // crate::step!();
+
             values.extend(tail.values());
         }
         values
@@ -141,7 +167,7 @@ impl std::fmt::Debug for Cell<'_> {
                     fg,
                     match self.tail() {
                         Some(tail) => {
-                            format!("{:p}", &tail)
+                            color_addr(tail)
                             // format!(
                             //     "\x1b[1;38;5;{}mCell({}\x1b[1;38;5;{}m)",
                             //     fg,
@@ -181,10 +207,14 @@ mod cell_tests {
     // }
     #[test]
     fn test_add() {
-        let mut cell = Cell::new(Value::from("head"));
-        cell.add_value(Value::from("tail"));
-        assert_equal!(cell.len(), 2);
-        assert_equal!(cell.values(), vec![Value::from("head"), Value::from("tail")]);
+        let mut head = Cell::new(Value::from("head"));
+        let mut cell = Cell::new(Value::from("cell"));
+        head.add(cell.clone());
+        assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell")]);
+        assert_equal!(head.len(), 2);
+        // cell.add(Cell::new(Value::from("tail")));
+        // assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell"), Value::from("tail")]);
+        // assert_equal!(head.len(), 3);
     }
 }
 
@@ -286,21 +316,3 @@ mod cell_tests {
 //         assert_display_equal!(cons("head", Some(Cell::from(Value::from("tail")))), "(head tail)");
 //     }
 // }
-
-pub fn color_addr<T: Sized>(t: &T) -> String {
-    let addr = std::ptr::from_ref(t).addr();
-    let fg = if addr > 0 {
-        addr % 255
-    } else {
-        16
-    };
-    let bg = match fg {
-        0 | 8 | 16 .. 24 | 232..237 => {
-            255
-        },
-        _ => {
-            16
-        }
-    };
-    format!("\x1b[1;48;5;{}m\x1b[1;38;5;{}m{}\x1b[0m", bg, fg, addr)
-}
