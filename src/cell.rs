@@ -42,10 +42,11 @@ impl<'c> Cell<'c> {
                 let mut new_tail = std::ptr::from_ref::<Cell<'c>>(new);
                 self.tail = new_tail;
             }
-        }
-        match self.tail() {
-            Some(tail) => {},
-            None => {},
+        } else {
+            unsafe {
+                let mut tail = &mut *self.tail.cast_mut();
+                tail.add(new);
+            }
         }
     }
 
@@ -144,6 +145,7 @@ mod cell_tests {
     use k9::assert_equal;
 
     use crate::*;
+
     #[test]
     fn test_add_when_tail_is_null() {
         let mut head = Cell::new(Value::from("head"));
@@ -172,5 +174,23 @@ mod cell_tests {
         assert_equal!(cell.len(), 2);
         assert_equal!(tail.values(), vec![Value::from("tail")]);
         assert_equal!(tail.len(), 1);
+    }
+
+    #[test]
+    fn test_add_when_tail_is_not_necessarily_null() {
+        let mut head = Cell::new(Value::from("head"));
+        let mut cell = Cell::new(Value::from("cell"));
+        let mut tail = Cell::new(Value::from("tail"));
+
+        assert_equal!(head.values(), vec![Value::from("head")]);
+        assert_equal!(head.len(), 1);
+
+        head.add(&cell);
+        assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell")]);
+        assert_equal!(head.len(), 2);
+
+        head.add(&tail);
+        assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell"), Value::from("tail")]);
+        assert_equal!(head.len(), 3);
     }
 }
