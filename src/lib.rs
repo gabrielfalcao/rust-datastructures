@@ -11,9 +11,14 @@ pub use value::Value;
 pub mod test;
 
 pub fn color_addr<T: Sized>(t: &T) -> String {
-    let addr = std::ptr::from_ref(t).addr();
-    let (bg, fg) = colors(addr);
-    format!("\x1b[1;48;5;{}m\x1b[1;38;5;{}m{}\x1b[0m", bg, fg, addr)
+    let addr = std::ptr::from_ref(t);
+    color_ptr(addr)
+    // let (bg, fg) = colors(addr);
+    // format!("\x1b[1;48;5;{}m\x1b[1;38;5;{}m{}\x1b[0m", bg, fg, addr)
+}
+pub fn color_ptr<T: Sized>(addr: *const T) -> String {
+    let (bg, fg) = colors(addr.addr());
+    format!("\x1b[1;48;5;{}m\x1b[1;38;5;{}m{:016x}\x1b[0m", bg, fg, addr.addr())
 }
 
 pub fn color_fg<T: std::fmt::Display>(text: T, fg: u8) -> String {
@@ -30,6 +35,12 @@ pub fn color_bgfg<T: std::fmt::Display>(text: T, fg: u8, bg: u8) -> String {
 }
 pub fn colorize<T: std::fmt::Display>(text: T, fg: u8, bg: u8) -> String {
     reset(color_bgfg(text, fg, bg))
+}
+pub fn color_fore<T: std::fmt::Display>(text: T, fg: u8) -> String {
+    reset(color_fg(text, fg))
+}
+pub fn color_back<T: std::fmt::Display>(text: T, bg: u8) -> String {
+    reset(color_bg(text, bg))
 }
 
 pub fn colors(addr: usize) -> (u8, u8) {

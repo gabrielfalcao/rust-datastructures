@@ -17,9 +17,9 @@ test = true
 k9 = "0.12.0"
 
 
-# [[test]]
-# name = "cell_conversion"
-# path = "./tests/test_cell_conversion.rs"
+[[test]]
+name = "cell_conversion"
+path = "./tests/test_cell_conversion.rs"
 
 [[test]]
 name = "cell_methods"

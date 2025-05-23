@@ -54,7 +54,7 @@ macro_rules! step_test {
     ($text:expr) => {{
         let (bg, fg) = $crate::colors(line!() as usize);
         eprintln!(
-            "\n{}\n{}\n{}\n",
+            "\n{}\n{}\n",
             crate::reset(crate::color_bg(" ".repeat(80), fg)),
             crate::colorize(
                 format!(
@@ -66,7 +66,6 @@ macro_rules! step_test {
                 fg,
                 bg
             ),
-            crate::reset(crate::color_bg(" ".repeat(80), fg)),
         );
     }};
     () => {{

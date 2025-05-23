@@ -1,4 +1,4 @@
-use std::alloc::{alloc, Layout};
+use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
 use std::borrow::{Borrow, Cow, ToOwned};
 use std::convert::AsRef;
 use std::fmt::Debug;
@@ -9,13 +9,14 @@ use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr::NonNull;
 
 #[rustfmt::skip]
-use crate::{color_addr, color_bg, color_bgfg, color_fg, colorize, reset};
+use crate::{color_addr, color_back, color_bg, color_bgfg, color_fg, color_fore, colorize, reset, color_ptr};
 use crate::{car, cdr, cons, step, Value};
 
 pub struct Cell<'c> {
     head: *const Value<'c>,
     tail: *const Cell<'c>,
 }
+
 impl<'c> Cell<'c> {
     pub fn nil() -> Cell<'c> {
         Cell {
@@ -28,6 +29,15 @@ impl<'c> Cell<'c> {
         let mut cell = Cell::nil();
         unsafe {
             cell.head = std::ptr::from_ref::<Value<'c>>(&value);
+            // dbg!(&cell);
+            // step!(format!("{}", &value));
+
+            // let mut nonnull = NonNull::<Value<'c>>::dangling().add(1);
+            // dbg!(&nonnull, &cell);
+            // nonnull.write(value);
+            // dbg!(&nonnull, &cell);
+            // cell.head = nonnull.as_ptr();
+            // dbg!(&nonnull, &cell);
         }
         cell
     }
@@ -134,14 +144,15 @@ impl<'c> From<Value<'c>> for Cell<'c> {
 }
 impl<'c> From<&'c str> for Cell<'c> {
     fn from(value: &'c str) -> Cell<'c> {
-        Cell::new(Value::from(value))
+        let value = Value::from(value);
+        Cell::new(value)
     }
 }
-// impl<'c> From<u8> for Cell<'c> {
-//     fn from(value: u8) -> Cell<'c> {
-//         Cell::new(Value::Byte(value))
-//     }
-// }
+impl<'c> From<u8> for Cell<'c> {
+    fn from(value: u8) -> Cell<'c> {
+        Cell::new(Value::Byte(value))
+    }
+}
 // impl<'c> From<u64> for Cell<'c> {
 //     fn from(value: u64) -> Cell<'c> {
 //         if value < u8::MAX.into() {
@@ -206,49 +217,88 @@ impl std::fmt::Debug for Cell<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "\nCell@\x1b[1;38;5;49m{}\x1b[0m[\x1b[1;48;5;{}m\x1b[1;38;5;16m{}\x1b[0m] -> {}\x1b[0m\n",
+            "Cell@{}[head:{} | tail:{}]",
             &self.addr(),
-            match self.head() {
-                Some(Value::Nil) => 196,
-                Some(Value::Symbol(symbol)) => match symbol.to_string().as_str() {
-                    "head" => 136,
-                    "tail" => 33,
-                    _ => 196,
-                },
-                Some(Value::UInt(_)) => 39,
-                Some(Value::Int(_)) => 74,
-                Some(Value::Byte(_)) => 79,
-                None => 88
+            if self.head.is_null() {
+                color_fore("null", 196)
+            } else {
+                color_fore(format!("{:016x}", self.head.addr()), 37)
             },
-            self.head().map(|head|head.to_string()).unwrap_or_default(),
-            {
-                let bg = match self.tail.addr() {
-                    0 => 16,
-                    8 => 232,
-                    _ => match self.tail() {
-                        Some(_) => 202,
-                        None => 54,
-                    },
-                };
-                let fg = match self.tail.addr() {
-                    0 => 255,
-                    8 => 202,
-                    _ => 160,
-                };
+            if self.tail.is_null() {
+                color_fore("null", 196)
+            } else {
+                color_fore(format!("{:016x}", self.tail.addr()), 48)
+            },
+        )
+    }
+}
+
+// impl std::fmt::Debug for Cell<'_> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         let head = self.head();
+//         write!(
+//             f,
+//             "\nCell@\x1b[1;38;5;49m{}\x1b[0m[\x1b[1;48;5;{}m\x1b[1;38;5;16m{}\x1b[0m] -> {}\x1b[0m\n",
+//             &self.addr(),
+//             match &head {
+//                 Some(Value::Nil) => 196,
+//                 Some(Value::Symbol(symbol)) => match symbol.to_string().as_str() {
+//                     "head" => 136,
+//                     "tail" => 33,
+//                     _ => 196,
+//                 },
+//                 Some(Value::UInt(_)) => 39,
+//                 Some(Value::Int(_)) => 74,
+//                 Some(Value::Byte(_)) => 79,
+//                 None => 88
+//             },
+//             head.map(|head|head.to_string()).unwrap_or_default(),
+//             {
+//                 let bg = match self.tail.addr() {
+//                     0 => 16,
+//                     8 => 232,
+//                     _ => match self.tail() {
+//                         Some(_) => 202,
+//                         None => 54,
+//                     },
+//                 };
+//                 let fg = match self.tail.addr() {
+//                     0 => 255,
+//                     8 => 202,
+//                     _ => 160,
+//                 };
+//                 format!(
+//                     "[\x1b[1;48;5;{}mtail:\x1b[1;38;5;{}m{}]",
+//                     bg,
+//                     fg,
+//                     match self.tail() {
+//                         Some(tail) => {
+//                             color_addr(tail)
+//                         },
+//                         None => {
+//                             format!("None")
+//                         },
+//                     }
+//                 )
+//             }
+//         )
+//     }
+// }
+impl<'c> Drop for Cell<'c> {
+    fn drop(&mut self) {
+        eprintln!(
+            "{}",
+            reset(color_fg(
                 format!(
-                    "[\x1b[1;48;5;{}mtail:\x1b[1;38;5;{}m{}]",
-                    bg,
-                    fg,
-                    match self.tail() {
-                        Some(tail) => {
-                            color_addr(tail)
-                        },
-                        None => {
-                            format!("None")
-                        },
-                    }
-                )
-            }
+                    "dropping {} {}{}:\thead:{}\ttail:{}",
+                    color_fg("cell", 220),
+                    color_fg(format!(" @ "), 255),
+                    color_fg(format!("{:p}", self), 49),
+                    color_ptr(self.head),
+                    color_ptr(self.tail),
+                ),
+                237
+            ))
         )
     }
 }

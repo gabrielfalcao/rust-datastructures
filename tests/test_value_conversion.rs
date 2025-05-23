@@ -1,3 +1,4 @@
+#![allow(unused)]
 use ds::*;
 use k9::assert_equal;
 

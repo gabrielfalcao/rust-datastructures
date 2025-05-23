@@ -2,6 +2,9 @@ use std::borrow::{Borrow, Cow, ToOwned};
 use std::ops::Deref;
 use std::rc::Rc;
 
+#[rustfmt::skip]
+use crate::{color_addr, color_back, color_bg, color_bgfg, color_fg, color_fore, colorize, reset};
+
 use crate::{step, Cons};
 
 #[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Default)]
@@ -26,6 +29,24 @@ impl<'v> Value<'_> {
         }
     }
 }
+impl<'v> Drop for Value<'v> {
+    fn drop(&mut self) {
+        eprintln!(
+            "{}",
+            reset(color_fg(
+                format!(
+                    "dropping {} {}{}:\t{}",
+                    color_fg("value", 220),
+                    color_fg(format!(" @ "), 255),
+                    color_addr(self),
+                    color_fg(self.to_string(), 201),
+                ),
+                237
+            ))
+        )
+    }
+}
+
 impl std::fmt::Display for Value<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
@@ -100,3 +121,9 @@ impl<'v> From<Option<String>> for Value<'v> {
         }
     }
 }
+// impl <'c>AsRef<Value<'c>> for Value<'c>
+// {
+//     fn as_ref(&self) -> &'c Value<'c> {
+//         &self.clone()
+//     }
+// }
