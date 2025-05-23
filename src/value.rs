@@ -4,11 +4,11 @@ use std::rc::Rc;
 
 use crate::Cons;
 
-#[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Default)]
+#[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Default, Copy)]
 pub enum Value<'v> {
     #[default]
     Nil,
-    Symbol(Cow<'v, str>),
+    Symbol(&'v str),
 }
 impl<'v> Value<'_> {
     pub fn nil() -> Value<'v> {
@@ -95,23 +95,26 @@ impl std::fmt::Debug for Value<'_> {
 
 impl<'v> From<&'v str> for Value<'v> {
     fn from(value: &'v str) -> Value<'v> {
-        Value::Symbol(Cow::from(value))
+        Value::Symbol(value)
+        // Value::Symbol(Cow::from(value))
     }
 }
 impl<'v> From<Cow<'v, str>> for Value<'v> {
     fn from(value: Cow<'v, str>) -> Value<'v> {
-        Value::from(value.into_owned())
+        Value::from(value.into_owned().leak())
     }
 }
 impl<'v> From<&'v mut str> for Value<'v> {
     fn from(value: &'v mut str) -> Value<'v> {
-        Value::Symbol(Cow::<'v, str>::Borrowed(&*value))
+        Value::Symbol(&*value)
+        // Value::Symbol(Cow::<'v, str>::Borrowed(&*value))
     }
 }
 impl<'v> From<String> for Value<'v> {
     fn from(value: String) -> Value<'v> {
-        Value::Symbol(Cow::from(value))
-    }
+        Value::Symbol(value.leak())
+        // Value::Symbol(Cow::from(value))
+  }
 }
 impl<'v> From<Option<String>> for Value<'v> {
     fn from(value: Option<String>) -> Value<'v> {
