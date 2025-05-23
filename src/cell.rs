@@ -8,8 +8,8 @@ use crate::{color_addr, color_bg, color_bgfg, color_fg, colorize, reset};
 use crate::{car, cdr, cons, Value};
 #[derive(PartialOrd, Ord, PartialEq, Eq, Copy)]
 pub struct Cell<'c> {
-    head: *mut Value<'c>,
-    tail: *mut Cell<'c>,
+    head: *const Value<'c>,
+    tail: *const Cell<'c>,
 }
 // impl<'c> Drop for Cell<'c> {
 //     fn drop(&mut self) {
@@ -25,8 +25,8 @@ impl<'c> Clone for Cell<'c> {
     fn clone(&self) -> Cell<'c> {
         let mut cell = Cell::nil();
         unsafe {
-            cell.head.write(self.head.read());
-            cell.tail.write(self.tail.read());
+            cell.head.cast_mut().write(self.head.read());
+            cell.tail.cast_mut().write(self.tail.read());
         }
         cell
     }
@@ -34,18 +34,16 @@ impl<'c> Clone for Cell<'c> {
 impl<'c> Cell<'c> {
     pub fn nil() -> Cell<'c> {
         Cell {
-            head: std::ptr::null_mut::<Value<'c>>(),
-            tail: std::ptr::null_mut::<Cell<'c>>(),
+            head: std::ptr::null::<Value<'c>>(),
+            tail: std::ptr::null::<Cell<'c>>(),
         }
     }
 
     pub fn new(value: Value<'c>) -> Cell<'c> {
         crate::step!("new");
-        let mut cell = Cell::nil();
         unsafe {
-            crate::step!("new");
-            cell.head.write(value);
-            crate::step!("new");
+            let mut cell = Cell::nil();
+            cell.head.cast_mut().write(value);
         }
         crate::step!("new");
 
@@ -74,15 +72,15 @@ impl<'c> Cell<'c> {
         }
     }
 
-    pub fn add(&mut self, new: &mut Cell<'c>) {
+    pub fn add(&mut self, new: &Cell<'c>) {
         if self.tail.is_null() {
             unsafe {
-                let mut new_tail = std::ptr::from_mut::<Cell<'c>>(new);
+                let mut new_tail = std::ptr::from_ref::<Cell<'c>>(new);
                 self.tail = new_tail;
             }
         } else {
             unsafe {
-                let mut tail = &mut *self.tail;
+                let mut tail = &mut *self.tail.cast_mut();
                 tail.add(new);
             }
         }
@@ -92,11 +90,11 @@ impl<'c> Cell<'c> {
         // if !self.tail.is_null() {
         //     unsafe {
         //         // self.as_mut().drop_in_place();
-        //         self.tail = std::ptr::null_mut::<Cell>();
+        //         self.tail = std::ptr::null::<Cell>();
         //     }
         //     true
         // } else if !self.head.is_null() {
-        //     self.head = std::ptr::null_mut::<Value>();
+        //     self.head = std::ptr::null::<Value>();
         //     true
         // } else {
         //     false
