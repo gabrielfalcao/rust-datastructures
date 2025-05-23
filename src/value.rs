@@ -2,7 +2,7 @@ use std::borrow::{Borrow, Cow, ToOwned};
 use std::ops::Deref;
 use std::rc::Rc;
 
-use crate::{Cons, step};
+use crate::{step, Cons};
 
 #[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Default)]
 pub enum Value<'v> {
@@ -54,81 +54,6 @@ impl std::fmt::Debug for Value<'_> {
                 Value::Int(h) => format!("{}", h),
             }
         )
-    }
-}
-
-#[cfg(test)]
-mod value_tests {
-    use std::rc::Rc;
-
-    use k9::assert_equal;
-
-    use crate::*;
-
-    #[test]
-    fn value_equals() {
-        assert_equal!(Value::from("string"), Value::from("string"));
-        assert_equal!(Value::from(0xf1u8), Value::from(0xf1u8));
-        assert_equal!(Value::from(0xf1u64), Value::from(0xf1u64));
-        assert_equal!(Value::from(7i64), Value::from(7i64));
-    }
-    #[test]
-    fn value_ref_equals() {
-        assert_equal!(&Value::from("string"), &Value::from("string"));
-        assert_equal!(&Value::from(0xf1u8), &Value::from(0xf1u8));
-        assert_equal!(&Value::from(0xf1u64), &Value::from(0xf1u64));
-        assert_equal!(&Value::from(7i64), &Value::from(7i64));
-    }
-    #[test]
-    fn value_option_ref_equals() {
-        assert_equal!(Some(&Value::from("string")), Some(&Value::from("string")));
-        assert_equal!(Some(&Value::from(0xf1u8)), Some(&Value::from(0xf1u8)));
-        assert_equal!(Some(&Value::from(0xf1u64)), Some(&Value::from(0xf1u64)));
-        assert_equal!(Some(&Value::from(7i64)), Some(&Value::from(7i64)));
-    }
-}
-#[cfg(test)]
-mod value_conversion_tests {
-    use std::rc::Rc;
-
-    use k9::assert_equal;
-
-    use crate::*;
-
-    #[test]
-    fn value_from_static_str() {
-        let value = "static-str";
-        assert_equal!(Value::from(value).to_string(), "static-str");
-        let value = "static-str";
-        assert_display_equal!(Value::from(value), "static-str");
-        let value = "static-str";
-        assert_debug_equal!(Value::from(value), "'static-str");
-    }
-    #[test]
-    fn value_from_str() {
-        let value = "str".to_string().leak();
-        assert_equal!(Value::from(value).to_string(), "str");
-        let value = "str".to_string().leak();
-        assert_display_equal!(Value::from(value), "str");
-        let value = "str".to_string().leak();
-        assert_debug_equal!(Value::from(value), "'str");
-    }
-    #[test]
-    fn value_from_string() {
-        let value = "string".to_string();
-        assert_equal!(Value::from(value).to_string(), "string");
-        let value = "string".to_string();
-        assert_display_equal!(Value::from(value), "string");
-        let value = "string".to_string();
-        assert_debug_equal!(Value::from(value), "'string");
-    }
-    #[test]
-    fn value_display_nil() {
-        assert_display_equal!(Value::Nil, "nil");
-    }
-    #[test]
-    fn value_debug_nil() {
-        assert_debug_equal!(Value::Nil, "nil");
     }
 }
 

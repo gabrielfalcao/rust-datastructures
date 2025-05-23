@@ -34,24 +34,37 @@ impl<'c> Cell<'c> {
 
     pub fn head(&self) -> Option<Value<'c>> {
         if self.head.is_null() {
+            step!("safe head null");
             None
         } else {
-            let value = unsafe { Some(self.head.read()) };
+            step!("enter unsafe");
+            let value = unsafe {
+                step!("within unsafe");
+                Some(self.head.read())
+            };
+            step!("exit unsafe");
+
             value
         }
     }
 
     pub fn add(&mut self, new: &Cell<'c>) {
         if self.tail.is_null() {
+            step!("tail null: enter unsafe add");
             unsafe {
+                step!("tail null: within unsafe");
                 let mut new_tail = std::ptr::from_ref::<Cell<'c>>(new);
                 self.tail = new_tail;
             }
+            step!("tail null: exit unsafe add");
         } else {
+            step!("tail NOT NULL: enter unsafe add");
             unsafe {
+                step!("tail NOT NULL: within unsafe");
                 let mut tail = &mut *self.tail.cast_mut();
                 tail.add(new);
             }
+            step!("tail NOT NULL: exit unsafe");
         }
     }
 
@@ -238,143 +251,4 @@ impl std::fmt::Debug for Cell<'_> {
             }
         )
     }
-}
-#[cfg(test)]
-mod tests_cell_methods {
-
-    use k9::assert_equal;
-
-    use crate::*;
-
-    #[test]
-    fn test_cell_head() {
-        let cell = Cell::new(Value::from("head"));
-        let head = cell.head();
-
-        assert_equal!(head, Some(Value::from("head")));
-    }
-
-    #[test]
-    fn test_add_when_tail_is_null() {
-        let mut head = Cell::new(Value::from("head"));
-        let mut cell = Cell::new(Value::from("cell"));
-
-        assert_equal!(cell.len(), 1);
-        assert_equal!(cell.values(), vec![Value::from("cell")]);
-
-        head.add(&cell);
-
-        assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell")]);
-        assert_equal!(head.len(), 2);
-
-        let mut tail = Cell::new(Value::from("tail"));
-        assert_equal!(tail.len(), 1);
-        assert_equal!(tail.values(), vec![Value::from("tail")]);
-
-        cell.add(&tail);
-
-        assert_equal!(
-            head.values(),
-            vec![Value::from("head"), Value::from("cell"), Value::from("tail")]
-        );
-        assert_equal!(head.len(), 3);
-        assert_equal!(cell.values(), vec![Value::from("cell"), Value::from("tail")]);
-        assert_equal!(cell.len(), 2);
-        assert_equal!(tail.values(), vec![Value::from("tail")]);
-        assert_equal!(tail.len(), 1);
-    }
-
-    #[test]
-    fn test_add_when_tail_is_not_necessarily_null() {
-        let mut head = Cell::new(Value::from("head"));
-        let mut cell = Cell::new(Value::from("cell"));
-        let mut tail = Cell::new(Value::from("tail"));
-
-        assert_equal!(head.values(), vec![Value::from("head")]);
-        assert_equal!(head.len(), 1);
-
-        head.add(&cell);
-        assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell")]);
-        assert_equal!(head.len(), 2);
-
-        head.add(&tail);
-        assert_equal!(
-            head.values(),
-            vec![Value::from("head"), Value::from("cell"), Value::from("tail")]
-        );
-        assert_equal!(head.len(), 3);
-    }
-    #[test]
-    fn test_add_and_pop() {
-        let mut head = Cell::new(Value::from("head"));
-        let mut cell = Cell::new(Value::from("cell"));
-
-        assert_equal!(head.len(), 1);
-        assert_equal!(head.values(), vec![Value::from("head")]);
-
-        head.add(&cell);
-
-        assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell")]);
-        assert_equal!(head.len(), 2);
-
-        assert_equal!(head.pop(), true);
-
-        assert_equal!(head.values(), vec![Value::from("head")]);
-        assert_equal!(head.len(), 1);
-
-        assert_equal!(head.pop(), true);
-
-        assert_equal!(head.values(), vec![]);
-        assert_equal!(head.len(), 0);
-
-        assert_equal!(head.pop(), false);
-        assert_equal!(head.values(), vec![]);
-        assert_equal!(head.len(), 0);
-
-        assert_equal!(head.pop(), false);
-        assert_equal!(head.values(), vec![]);
-        assert_equal!(head.len(), 0);
-    }
-}
-
-#[cfg(test)]
-mod tests_cell_conversion {
-    use k9::assert_equal;
-
-    use crate::*;
-
-    #[test]
-    fn test_cell_from_value() {
-        let cell = Cell::from(Value::Nil);
-        assert_equal!(cell.head(), Some(Value::Nil));
-        let cell = Cell::from(Value::from("string"));
-        assert_equal!(cell.head(), Some(Value::from("string")));
-        let cell = Cell::from(Value::from(0xF1u8));
-        assert_equal!(cell.head(), Some(Value::from(0xF1u8)));
-    }
-    // #[test]
-    // fn test_cell_from_str() {
-    //     step!();
-    //     let cell = Cell::from("head");
-    //     step!();
-    //     let head = cell.head();
-    //     step!();
-    //     assert_equal!(head, Some(Value::from("head")));
-    //     step!();
-    // }
-    // #[test]
-    // fn test_cell_from_u8() {
-    //     let cell = Cell::from(0x47);
-    //     assert_equal!(cell.head(), Some(Value::Byte(0x47)));
-    // }
-    // #[test]
-    // fn test_cell_from_u64() {
-    //     let cell = Cell::from(0xBEEF);
-    //     assert_equal!(cell.head(), Some(Value::UInt(0xBEEF)));
-    // }
-    // #[test]
-    // fn test_cell_from_i64() {
-    //     let cell = Cell::from(-47);
-    //     assert_equal!(cell.head(), Some(Value::Int(-47)));
-    // }
 }

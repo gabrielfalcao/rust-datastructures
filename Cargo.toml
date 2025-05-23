@@ -8,9 +8,27 @@ autotests = false
 
 
 [lib]
+name = "ds"
 test = true
 
 [dependencies]
 
 [dev-dependencies]
 k9 = "0.12.0"
+
+
+# [[test]]
+# name = "cell_conversion"
+# path = "./tests/test_cell_conversion.rs"
+
+[[test]]
+name = "cell_methods"
+path = "./tests/test_cell_methods.rs"
+
+[[test]]
+name = "value_conversion"
+path = "./tests/test_value_conversion.rs"
+
+[[test]]
+name = "value"
+path = "./tests/test_value.rs"

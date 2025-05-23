@@ -46,6 +46,33 @@ macro_rules! step {
         $crate::step!("")
     }};
 }
+#[macro_export]
+macro_rules! step_test {
+    ($text:literal) => {{
+        $crate::step_test!(format!("{}", $text))
+    }};
+    ($text:expr) => {{
+        let (bg, fg) = $crate::colors(line!() as usize);
+        eprintln!(
+            "\n{}\n{}\n{}\n",
+            crate::reset(crate::color_bg(" ".repeat(80), fg)),
+            crate::colorize(
+                format!(
+                    "{}:{}{}",
+                    $crate::function_name!(),
+                    line!(),
+                    if $text.is_empty() { String::new() } else { format!("\t{}", $text) }
+                ),
+                fg,
+                bg
+            ),
+            crate::reset(crate::color_bg(" ".repeat(80), fg)),
+        );
+    }};
+    () => {{
+        $crate::step_test!("")
+    }};
+}
 
 #[macro_export]
 macro_rules! function_name {
