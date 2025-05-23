@@ -21,10 +21,14 @@ macro_rules! assert_debug_equal {
 #[macro_export]
 macro_rules! step {
     ($text:literal) => {{
+        $crate::step!(format!("{}", $text))
+    }};
+    ($text:expr) => {{
         let (bg, fg) = $crate::colors(line!() as usize);
         eprintln!(
-            "\n{}\n{}\n{}\n",
-            crate::reset(crate::color_bg(" ".repeat(80), fg)),
+            "{}",
+            // "\n{}\n{}\n{}\n",
+            // crate::reset(crate::color_bg(" ".repeat(80), fg)),
             crate::colorize(
                 format!(
                     "{}:{}{}",
@@ -35,7 +39,7 @@ macro_rules! step {
                 fg,
                 bg
             ),
-            crate::reset(crate::color_bg(" ".repeat(80), fg)),
+            // crate::reset(crate::color_bg(" ".repeat(80), fg)),
         );
     }};
     () => {{
