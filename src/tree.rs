@@ -42,25 +42,68 @@ impl<'c> Node<'c> {
         node
     }
 
-    pub fn value(&self) -> Value<'c> {
-        Value::Nil
+    pub fn value(&self) -> &'c Value<'c> {
+        if let Some(ptr) = unsafe { self.item.as_ref() } {
+            ptr
+        } else {
+            let value = Value::Nil;
+            let ptr = &value as *const Value<'c>;
+            unsafe { ptr.as_ref() }.unwrap()
+        }
+    }
+
+    pub fn set_left(&mut self, node: &'c Node<'c>) -> Option<&'c Node<'c>> {
+        let mut left = Node::nil();
+        let value = node.value() as *const Value<'c>;
+        let old = self.left();
+        unsafe {
+            let item = internal::alloc::value();
+            item.write(value.read());
+            left.item = item;
+            let mut node = internal::alloc::node();
+            node.write(left);
+            self.left = node;
+        }
+        old
     }
 
     pub fn left(&self) -> Option<&'c Node<'c>> {
-        None
+        if self.left.is_null() {
+            None
+        } else {
+            unsafe { self.left.as_ref() }
+        }
+    }
+    pub fn left_value(&self) -> Value<'c> {
+        self.left().map(|node|node.value().clone()).unwrap_or_default()
+    }
+
+    pub fn set_right(&mut self, node: &'c Node<'c>) -> Option<&'c Node<'c>> {
+        let mut right = Node::nil();
+        let value = node.value() as *const Value<'c>;
+        let old = self.right();
+        unsafe {
+            let item = internal::alloc::value();
+            item.write(value.read());
+            right.item = item;
+            let mut node = internal::alloc::node();
+            node.write(right);
+            self.right = node;
+        }
+        old
     }
 
     pub fn right(&self) -> Option<&'c Node<'c>> {
-        None
+        if self.right.is_null() {
+            None
+        } else {
+            unsafe { self.right.as_ref() }
+        }
     }
-
-    pub fn left_value(&self) -> Value<'c> {
-        Value::Nil
-    }
-
     pub fn right_value(&self) -> Value<'c> {
-        Value::Nil
+        self.right().map(|node|node.value().clone()).unwrap_or_default()
     }
+
 }
 
 impl<'c> PartialEq<Node<'c>> for Node<'c> {
