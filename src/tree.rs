@@ -52,7 +52,6 @@ impl<'c> Node<'c> {
             parent
         } else {
             let parent = unsafe { self.parent.as_ref() }.unwrap();
-            // step!(format!("NON-NULL: {:#?}", parent));
             parent
         }
     }
@@ -67,7 +66,7 @@ impl<'c> Node<'c> {
         }
     }
 
-    pub fn set_left(&mut self, node: &'c Node<'c>) -> Option<&'c Node<'c>> {
+    pub fn set_left(&mut self, node: &'c Node<'c>) -> &'c Node<'c> {
         let mut left = Node::nil();
         let value = node.value() as *const Value<'c>;
         let old = self.left();
@@ -82,19 +81,28 @@ impl<'c> Node<'c> {
         old
     }
 
-    pub fn left(&self) -> Option<&'c Node<'c>> {
+    pub fn left(&self) -> &'c Node<'c> {
         if self.left.is_null() {
-            None
+            let left = Node::nil();
+            let ptr = &left as *const Node<'c>;
+            let left = unsafe { ptr.as_ref() }.unwrap();
+            left
         } else {
-            unsafe { self.left.as_ref() }
+            let left = unsafe { self.left.as_ref() }.unwrap();
+            left
         }
     }
 
     pub fn left_value(&self) -> Value<'c> {
-        self.left().map(|node| node.value().clone()).unwrap_or_default()
+        if self.left.is_null() {
+            Value::Nil
+        } else {
+            self.left().value().clone()
+        }
+
     }
 
-    pub fn set_right(&mut self, node: &'c Node<'c>) -> Option<&'c Node<'c>> {
+    pub fn set_right(&mut self, node: &'c Node<'c>) -> &'c Node<'c> {
         let mut right = Node::nil();
         let value = node.value() as *const Value<'c>;
         let old = self.right();
@@ -109,16 +117,24 @@ impl<'c> Node<'c> {
         old
     }
 
-    pub fn right(&self) -> Option<&'c Node<'c>> {
+    pub fn right(&self) -> &'c Node<'c> {
         if self.right.is_null() {
-            None
+            let right = Node::nil();
+            let ptr = &right as *const Node<'c>;
+            let right = unsafe { ptr.as_ref() }.unwrap();
+            right
         } else {
-            unsafe { self.right.as_ref() }
+            let right = unsafe { self.right.as_ref() }.unwrap();
+            right
         }
     }
 
     pub fn right_value(&self) -> Value<'c> {
-        self.right().map(|node| node.value().clone()).unwrap_or_default()
+        if self.right.is_null() {
+            Value::Nil
+        } else {
+            self.right().value().clone()
+        }
     }
 
     // ICAgIGZuIGluY3JfcmVmKCZtdXQgc2VsZikgewogICAgICAgIHNlbGYucmVmcyArPSAxOwogICAgICAgIGlmICFzZWxmLnBhcmVudC5pc19udWxsKCkgewogICAgICAgICAgICB1bnNhZmUgewogICAgICAgICAgICAgICAgbGV0IG11dCBwYXJlbnQgPSBzZWxmLnBhcmVudCBhcyAqbXV0IE5vZGU8J2M+OwogICAgICAgICAgICAgICAgaWYgbGV0IFNvbWUobXV0IHBhcmVudCkgPSBwYXJlbnQuYXNfbXV0KCkgewogICAgICAgICAgICAgICAgICAgIHBhcmVudC5yZWZzICs9IDE7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICB9Cg==

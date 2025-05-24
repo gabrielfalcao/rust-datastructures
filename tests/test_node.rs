@@ -9,8 +9,8 @@ fn test_node_nil() {
     assert_equal!(node.is_nil(), true);
     assert_equal!(node.parent(), &Node::nil());
     assert_equal!(node.value(), &Value::Nil);
-    assert_equal!(node.left(), None);
-    assert_equal!(node.right(), None);
+    assert_equal!(node.left(), &Node::nil());
+    assert_equal!(node.right(), &Node::nil());
     assert_equal!(node.left_value(), Value::Nil);
     assert_equal!(node.right_value(), Value::Nil);
 }
@@ -20,8 +20,8 @@ fn test_node_new() {
     let node = Node::new(Value::from("value"));
     assert_equal!(node.is_nil(), false);
     assert_equal!(node.parent(), &Node::nil());
-    assert_equal!(node.left(), None);
-    assert_equal!(node.right(), None);
+    assert_equal!(node.left(), &Node::nil());
+    assert_equal!(node.right(), &Node::nil());
     assert_equal!(node.left_value(), Value::Nil);
     assert_equal!(node.right_value(), Value::Nil);
 
@@ -36,8 +36,8 @@ fn test_set_left() {
 
     assert_equal!(node.is_nil(), false);
     assert_equal!(node.parent(), &Node::nil());
-    assert_equal!(node.left(), Some(&left));
-    assert_equal!(node.right(), None);
+    assert_equal!(node.left(), &left);
+    assert_equal!(node.right(), &Node::nil());
     assert_equal!(node.left_value(), Value::from("left"));
     assert_equal!(node.right_value(), Value::Nil);
 }
@@ -50,8 +50,8 @@ fn test_set_right() {
 
     assert_equal!(node.is_nil(), false);
     assert_equal!(node.parent(), &Node::nil());
-    assert_equal!(node.right(), Some(&right));
-    assert_equal!(node.left(), None);
+    assert_equal!(node.right(), &right);
+    assert_equal!(node.left(), &Node::nil());
     assert_equal!(node.left_value(), Value::Nil);
     assert_equal!(node.right_value(), Value::from("right"));
 }
@@ -75,8 +75,8 @@ fn test_clone_non_null() {
 
     assert_equal!(node.parent(), &Node::nil());
     assert_equal!(node.is_nil(), false);
-    assert_equal!(node.left(), Some(&left));
-    assert_equal!(node.right(), Some(&right));
+    assert_equal!(node.left(), &left);
+    assert_equal!(node.right(), &right);
     assert_equal!(node.left_value(), Value::from("left"));
     assert_equal!(node.right_value(), Value::from("right"));
     assert_equal!(node, tree);
