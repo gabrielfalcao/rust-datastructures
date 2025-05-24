@@ -16,6 +16,7 @@ pub struct Node<'c> {
     item: *const Value<'c>,
     left: *const Node<'c>,
     right: *const Node<'c>,
+    refs: usize,
 }
 
 impl<'c> Node<'c> {
@@ -25,6 +26,7 @@ impl<'c> Node<'c> {
             item: internal::null::value(),
             left: internal::null::node(),
             right: internal::null::node(),
+            refs: 0,
         }
     }
 
@@ -40,6 +42,19 @@ impl<'c> Node<'c> {
             node.item = item;
         }
         node
+    }
+
+    pub fn parent(&self) -> &'c Node<'c> {
+        if self.parent.is_null() {
+            let parent = Node::nil();
+            let ptr = &parent as *const Node<'c>;
+            let parent = unsafe { ptr.as_ref() }.unwrap();
+            parent
+        } else {
+            let parent = unsafe { self.parent.as_ref() }.unwrap();
+            // step!(format!("NON-NULL: {:#?}", parent));
+            parent
+        }
     }
 
     pub fn value(&self) -> &'c Value<'c> {
@@ -105,6 +120,8 @@ impl<'c> Node<'c> {
     pub fn right_value(&self) -> Value<'c> {
         self.right().map(|node| node.value().clone()).unwrap_or_default()
     }
+
+    // ICAgIGZuIGluY3JfcmVmKCZtdXQgc2VsZikgewogICAgICAgIHNlbGYucmVmcyArPSAxOwogICAgICAgIGlmICFzZWxmLnBhcmVudC5pc19udWxsKCkgewogICAgICAgICAgICB1bnNhZmUgewogICAgICAgICAgICAgICAgbGV0IG11dCBwYXJlbnQgPSBzZWxmLnBhcmVudCBhcyAqbXV0IE5vZGU8J2M+OwogICAgICAgICAgICAgICAgaWYgbGV0IFNvbWUobXV0IHBhcmVudCkgPSBwYXJlbnQuYXNfbXV0KCkgewogICAgICAgICAgICAgICAgICAgIHBhcmVudC5yZWZzICs9IDE7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICB9Cg==
 }
 
 impl<'c> PartialEq<Node<'c>> for Node<'c> {
@@ -112,8 +129,8 @@ impl<'c> PartialEq<Node<'c>> for Node<'c> {
         if self.is_nil() == other.is_nil() {
             true
         } else {
-            self.value() == other.value()
-                && self.parent.addr() == other.parent.addr()
+            dbg!(self.value() == other.value())
+                && dbg!(self.parent.addr() == other.parent.addr())
                 && self.left.addr() == other.left.addr()
                 && self.right.addr() == other.right.addr()
         }
@@ -123,6 +140,7 @@ impl<'c> PartialEq<Node<'c>> for Node<'c> {
 impl<'c> Clone for Node<'c> {
     fn clone(&self) -> Node<'c> {
         let mut node = Node::nil();
+        node.refs = self.refs;
         unsafe {
             if !self.item.is_null() {
                 let item = internal::alloc::value();

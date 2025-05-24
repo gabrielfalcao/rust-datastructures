@@ -153,10 +153,12 @@ impl<'c> Cell<'c> {
 
     fn incr_ref(&mut self) {
         self.refs += 1;
-        unsafe {
-            let mut tail = self.tail as *mut Cell<'c>;
-            if let Some(mut tail) = tail.as_mut() {
-                tail.refs += 1;
+        if !self.tail.is_null() {
+            unsafe {
+                let mut tail = self.tail as *mut Cell<'c>;
+                if let Some(mut tail) = tail.as_mut() {
+                    tail.refs += 1;
+                }
             }
         }
     }
@@ -239,7 +241,6 @@ impl<'c> Clone for Cell<'c> {
                 cell.tail = tail;
             }
         }
-        // cell.incr_ref();
         cell
     }
 }

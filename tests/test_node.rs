@@ -7,6 +7,7 @@ fn test_node_nil() {
     let node = Node::nil();
 
     assert_equal!(node.is_nil(), true);
+    assert_equal!(node.parent(), &Node::nil());
     assert_equal!(node.value(), &Value::Nil);
     assert_equal!(node.left(), None);
     assert_equal!(node.right(), None);
@@ -18,6 +19,7 @@ fn test_node_nil() {
 fn test_node_new() {
     let node = Node::new(Value::from("value"));
     assert_equal!(node.is_nil(), false);
+    assert_equal!(node.parent(), &Node::nil());
     assert_equal!(node.left(), None);
     assert_equal!(node.right(), None);
     assert_equal!(node.left_value(), Value::Nil);
@@ -33,6 +35,7 @@ fn test_set_left() {
     node.set_left(&left);
 
     assert_equal!(node.is_nil(), false);
+    assert_equal!(node.parent(), &Node::nil());
     assert_equal!(node.left(), Some(&left));
     assert_equal!(node.right(), None);
     assert_equal!(node.left_value(), Value::from("left"));
@@ -46,6 +49,7 @@ fn test_set_right() {
     node.set_right(&right);
 
     assert_equal!(node.is_nil(), false);
+    assert_equal!(node.parent(), &Node::nil());
     assert_equal!(node.right(), Some(&right));
     assert_equal!(node.left(), None);
     assert_equal!(node.left_value(), Value::Nil);
@@ -69,6 +73,7 @@ fn test_clone_non_null() {
 
     let tree = node.clone();
 
+    assert_equal!(node.parent(), &Node::nil());
     assert_equal!(node.is_nil(), false);
     assert_equal!(node.left(), Some(&left));
     assert_equal!(node.right(), Some(&right));
