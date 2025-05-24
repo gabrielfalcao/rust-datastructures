@@ -52,25 +52,35 @@ pub fn ptr_colors<T: Sized>(addr: *const T) -> (u8, u8) {
         addr => couple(addr),
     }
 }
-pub fn ptr_repr<T: Sized + Debug>(ptr: *const T, bg: u8, fg: u8) -> String {
+pub fn ptr_repr<T: Sized + Debug>(
+    ptr: *const T,
+    bg: u8,
+    fg: u8,
+    null_bg: u8,
+    null_fg: u8,
+    nonnull_bg: u8,
+    nonnull_fg: u8,
+) -> String {
     format!(
         "{}{}{}",
         reset(bgfg(format!("{:08x}", ptr.addr()), fg.into(), bg.into())),
-        bgfg(":", 16, 231),
+        bgfg(":", 231, 16),
         if ptr.is_null() {
-            let (bg, fg) = couple(9);
-            reset(bgfg("null", fg.into(), bg.into()))
+            reset(bgfg("null", null_fg.into(), null_bg.into()))
         } else {
-            let (bg, fg) = couple(137);
-            reset(bgfg("non-null", fg.into(), bg.into()))
+            reset(bgfg("non-null", nonnull_fg.into(), nonnull_bg.into()))
         }
     )
 }
 pub fn ptr<T: Sized + Debug>(ptr: *const T) -> String {
     let (bg, fg) = ptr_colors(ptr);
-    ptr_repr(ptr, bg, fg)
+    let (null_bg, null_fg) = couple(9);
+    let (nonnull_bg, nonnull_fg) = couple(137);
+    ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg,nonnull_fg)
 }
 pub fn ptr_inv<T: Sized + Debug>(ptr: *const T) -> String {
-    let (bg, fg) = ptr_colors(ptr);
-    ptr_repr(ptr, fg, bg)
+    let (fg, bg) = ptr_colors(ptr);
+    let (null_fg, null_bg) = couple(9);
+    let (nonnull_fg, nonnull_bg) = couple(137);
+    ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg,nonnull_fg)
 }

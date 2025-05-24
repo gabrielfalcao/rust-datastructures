@@ -4,16 +4,10 @@ use k9::assert_equal;
 
 #[test]
 fn test_cell_from_u8() {
-    step_test!("let cell = Cell::from(0xF1u8)");
     let cell = Cell::from(0xF1u8);
-    dbg!(&cell);
-    step_test!("let head = cell.head()");
-    dbg!(&cell);
     let head = cell.head();
-    step_test!("assert_equal!(head, Some(Value::Byte(0xF1u8)))");
     // Value<'c> within cell.head is dropped as soon as is read
     assert_equal!(head, Some(Value::Byte(0xF1u8)));
-    step_test!();
 }
 // #[test]
 // fn test_cell_from_value() {
@@ -23,13 +17,9 @@ fn test_cell_from_u8() {
 // }
 // // #[test]
 // // fn test_cell_from_str() {
-// //     step_test!();
 // //     let cell = Cell::from("head");
-// //     step_test!();
 // //     let head = cell.head();
-// //     step_test!();
 // //     assert_equal!(head, Some(Value::from("head")));
-// //     step_test!();
 // // }
 // // #[test]
 // // fn test_cell_from_value() {

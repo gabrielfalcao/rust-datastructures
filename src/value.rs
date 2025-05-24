@@ -8,7 +8,7 @@ use crate::{color, step, Cons};
 pub enum Value<'v> {
     #[default]
     Nil,
-    Symbol(Cow<'v, str>),
+    String(Cow<'v, str>),
     Byte(u8),
     UInt(u64),
     Int(i64),
@@ -30,21 +30,36 @@ impl<'v> Drop for Value<'v> {
     fn drop(&mut self) {
         eprintln!(
             "{}",
-            color::reset(color::fg(
+            color::reset(color::bgfg(
                 format!(
-                    "\n{}\n{}{} {}{}: {}{}\n{}",
-                    crate::color::reset(crate::color::bg(" ".repeat(80), color::wrap(197).into())),
-                    crate::color::bgfg("DROPPING ", 16, 197),
-                    crate::color::fg("VALUE", 16),
-                    color::bgfg(format!(" @ "), 16, 231),
+                    "{}{} {}{}: {}",
+                    crate::color::fg("dropping ", 237),
+                    crate::color::fg("value", 136),
+                    color::bgfg(format!(" @ "), 231, 16),
                     color::ptr_inv(self),
-                    color::fore(self.to_string(), 201),
-                    crate::color::reset(crate::color::bg(" ".repeat(39), color::wrap(197).into())),
-                    crate::color::reset(crate::color::bg(" ".repeat(80), color::wrap(197).into())),
+                    color::fore(format!("{:#?}", self), 201),
                 ),
-                237
+                197,
+                16,
             ))
         )
+        // eprintln!(
+        //     "{}",
+        //     color::reset(color::fg(
+        //         format!(
+        //             "\n{}\n{}{} {}{}: {}{}\n{}",
+        //             crate::color::reset(crate::color::bg(" ".repeat(80), color::wrap(197).into())),
+        //             crate::color::bgfg("DROPPING ", 16, 197),
+        //             crate::color::fg("VALUE", 16),
+        //             color::bgfg(format!(" @ "), 16, 231),
+        //             color::ptr_inv(self),
+        //             color::fore(self.to_string(), 201),
+        //             crate::color::reset(crate::color::bg(" ".repeat(39), color::wrap(197).into())),
+        //             crate::color::reset(crate::color::bg(" ".repeat(80), color::wrap(197).into())),
+        //         ),
+        //         237
+        //     ))
+        // )
     }
 }
 
@@ -55,7 +70,7 @@ impl std::fmt::Display for Value<'_> {
             "{}",
             match self {
                 Value::Nil => "nil".to_string(),
-                Value::Symbol(h) => format!("{}", h),
+                Value::String(h) => format!("{}", h),
                 Value::Byte(h) => format!("{}", h),
                 Value::UInt(h) => format!("{}", h),
                 Value::Int(h) => format!("{}", h),
@@ -70,10 +85,10 @@ impl std::fmt::Debug for Value<'_> {
             "{}",
             match self {
                 Value::Nil => "nil".to_string(),
-                Value::Symbol(h) => format!("'{}", h),
-                Value::Byte(h) => format!("{}", h),
-                Value::UInt(h) => format!("{}", h),
-                Value::Int(h) => format!("{}", h),
+                Value::String(h) => format!("{:#?}", h),
+                Value::Byte(h) => format!("{}u8", h),
+                Value::UInt(h) => format!("{}u64", h),
+                Value::Int(h) => format!("{}i64", h),
             }
         )
     }
@@ -96,7 +111,7 @@ impl<'v> From<i64> for Value<'v> {
 }
 impl<'v> From<&'v str> for Value<'v> {
     fn from(value: &'v str) -> Value<'v> {
-        Value::Symbol(Cow::from(value))
+        Value::String(Cow::from(value))
     }
 }
 impl<'v> From<Cow<'v, str>> for Value<'v> {
@@ -106,12 +121,12 @@ impl<'v> From<Cow<'v, str>> for Value<'v> {
 }
 impl<'v> From<&'v mut str> for Value<'v> {
     fn from(value: &'v mut str) -> Value<'v> {
-        Value::Symbol(Cow::<'v, str>::Borrowed(&*value))
+        Value::String(Cow::<'v, str>::Borrowed(&*value))
     }
 }
 impl<'v> From<String> for Value<'v> {
     fn from(value: String) -> Value<'v> {
-        Value::Symbol(Cow::from(value))
+        Value::String(Cow::from(value))
     }
 }
 impl<'v> From<Option<String>> for Value<'v> {

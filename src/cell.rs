@@ -16,6 +16,18 @@ pub struct Cell<'c> {
     tail: *const Cell<'c>,
 }
 
+unsafe fn alloc_value<'c>() -> *mut Value<'c> {
+    let layout = Layout::new::<Value<'c>>();
+    let ptr = unsafe {
+        let ptr = std::alloc::alloc(layout);
+        if ptr.is_null() {
+            handle_alloc_error(layout);
+        }
+        ptr
+    };
+    ptr as *mut Value<'c>
+}
+
 impl<'c> Cell<'c> {
     pub fn nil() -> Cell<'c> {
         Cell {
@@ -26,75 +38,44 @@ impl<'c> Cell<'c> {
 
     pub fn new(value: Value<'c>) -> Cell<'c> {
         let mut cell = Cell::nil();
-        step!(format!("enter unsafe, head is: {}", color::ptr(cell.head)));
         unsafe {
-            // step!("within unsafe: assign pointer");
-            step!(format!("within unsafe, head is: {}", color::ptr(cell.head)));
             let layout = Layout::new::<Value<'c>>();
             let ptr = std::alloc::alloc(layout);
-            step!(format!("within unsafe, allocated new ptr: {}", color::ptr(ptr)));
+            if ptr.is_null() {
+                handle_alloc_error(layout);
+            }
             let head = ptr as *mut Value<'c>;
-            step!(format!("within unsafe, assigning new head: {}", color::ptr(head)));
             let layout = Layout::new::<Value<'c>>();
             head.write(value);
             cell.head = head;
-            step!(format!("exiting unsafe, head is: {}", color::ptr(cell.head)));
-
-            // cell.head = std::ptr::from_ref::<Value<'c>>(&value);
-            // dbg!(&cell);
-            // step!(format!("{}", &value));
-
-            // let mut nonnull = NonNull::<Value<'c>>::dangling();
-            // dbg!(&nonnull, &cell);
-            // // nonnull.write(value);
-            // dbg!(&nonnull, &cell);
-            // cell.head = nonnull.as_ptr();
-            // dbg!(&nonnull, &cell);
         }
-        step!("exit unsafe");
-        dbg!(&cell);
         cell
     }
 
     pub fn head(&self) -> Option<Value<'c>> {
-        dbg!(self);
         let value = if self.head.is_null() {
-            step!("safe head null");
             None
         } else {
-            step!(format!("enter unsafe, head is: {}", color::ptr(self.head)));
             let value = unsafe {
-                step!("within unsafe: enter");
                 let value = self.head.read();
-                step!("within unsafe: exit");
                 value
             };
-            step!("exit unsafe");
-            // step!("exit unsafe: clone referenced value");
-            // let value = value.map(|value|value.clone());
             Some(value)
         };
-        step!("safe: return value");
         value
     }
 
     pub fn add(&mut self, new: &Cell<'c>) {
         if self.tail.is_null() {
-            step!("tail null: enter unsafe add");
             unsafe {
-                step!("tail null: within unsafe");
                 let mut new_tail = std::ptr::from_ref::<Cell<'c>>(new);
                 self.tail = new_tail;
             }
-            step!("tail null: exit unsafe add");
         } else {
-            step!("tail NOT NULL: enter unsafe add");
             unsafe {
-                step!("tail NOT NULL: within unsafe");
                 let mut tail = &mut *self.tail.cast_mut();
                 tail.add(new);
             }
-            step!("tail NOT NULL: exit unsafe");
         }
     }
 
@@ -196,19 +177,14 @@ impl<'c> From<u8> for Cell<'c> {
 impl<'c> PartialEq<Cell<'c>> for Cell<'c> {
     fn eq(&self, other: &Cell<'c>) -> bool {
         if self.head.is_null() == other.head.is_null() {
-            step!();
             true
         } else if let Some(mine) = self.head() {
-            step!();
             if let Some(theirs) = other.head() {
-                step!();
                 return mine == theirs;
             } else {
-                step!();
                 false
             }
         } else {
-            step!();
             false
         }
     }
@@ -260,7 +236,7 @@ impl std::fmt::Debug for Cell<'_> {
 //             &self.addr(),
 //             match &head {
 //                 Some(Value::Nil) => 196,
-//                 Some(Value::Symbol(symbol)) => match symbol.to_string().as_str() {
+//                 Some(Value::String(symbol)) => match symbol.to_string().as_str() {
 //                     "head" => 136,
 //                     "tail" => 33,
 //                     _ => 196,
@@ -306,16 +282,17 @@ impl<'c> Drop for Cell<'c> {
     fn drop(&mut self) {
         eprintln!(
             "{}",
-            color::reset(color::fg(
+            color::reset(color::bgfg(
                 format!(
-                    "dropping {} {}{}:\thead:{}\ttail:{}",
-                    color::fg("cell", 220),
-                    color::fg(format!(" @ "), 255),
-                    color::fg(format!("{:p}", self), 49),
-                    color::ptr_inv(self.head),
-                    color::ptr_inv(self.tail),
+                    "{}{} {}{}: {}",
+                    crate::color::fg("dropping ", 237),
+                    crate::color::fg("cell", 136),
+                    color::bgfg(format!(" @ "), 231, 16),
+                    color::ptr_inv(self),
+                    color::fore(format!("{:#?}", self), 201),
                 ),
-                237
+                197,
+                16,
             ))
         )
     }
