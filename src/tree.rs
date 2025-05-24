@@ -74,8 +74,9 @@ impl<'c> Node<'c> {
             unsafe { self.left.as_ref() }
         }
     }
+
     pub fn left_value(&self) -> Value<'c> {
-        self.left().map(|node|node.value().clone()).unwrap_or_default()
+        self.left().map(|node| node.value().clone()).unwrap_or_default()
     }
 
     pub fn set_right(&mut self, node: &'c Node<'c>) -> Option<&'c Node<'c>> {
@@ -100,10 +101,10 @@ impl<'c> Node<'c> {
             unsafe { self.right.as_ref() }
         }
     }
-    pub fn right_value(&self) -> Value<'c> {
-        self.right().map(|node|node.value().clone()).unwrap_or_default()
-    }
 
+    pub fn right_value(&self) -> Value<'c> {
+        self.right().map(|node| node.value().clone()).unwrap_or_default()
+    }
 }
 
 impl<'c> PartialEq<Node<'c>> for Node<'c> {
@@ -116,5 +117,29 @@ impl<'c> PartialEq<Node<'c>> for Node<'c> {
                 && self.left.addr() == other.left.addr()
                 && self.right.addr() == other.right.addr()
         }
+    }
+}
+
+impl<'c> Clone for Node<'c> {
+    fn clone(&self) -> Node<'c> {
+        let mut node = Node::nil();
+        unsafe {
+            if !self.item.is_null() {
+                let item = internal::alloc::value();
+                item.write(self.item.read());
+                node.item = item;
+            }
+            if !self.left.is_null() {
+                let left = internal::alloc::node();
+                left.write(self.left.read());
+                node.left = left;
+            }
+            if !self.right.is_null() {
+                let right = internal::alloc::node();
+                right.write(self.right.read());
+                node.right = right;
+            }
+        }
+        node
     }
 }

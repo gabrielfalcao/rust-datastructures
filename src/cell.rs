@@ -227,13 +227,17 @@ impl<'c> Clone for Cell<'c> {
     fn clone(&self) -> Cell<'c> {
         let mut cell = Cell::nil();
         unsafe {
-            let head = internal::alloc::value();
-            head.write(self.head.read());
-            let tail = internal::alloc::cell();
-            tail.write(self.tail.read());
-            cell.refs = self.refs;
-            cell.head = head;
-            cell.tail = tail;
+            if !self.head.is_null() {
+                let head = internal::alloc::value();
+                head.write(self.head.read());
+                cell.head = head;
+            }
+            if !self.tail.is_null() {
+                let tail = internal::alloc::cell();
+                tail.write(self.tail.read());
+                cell.refs = self.refs;
+                cell.tail = tail;
+            }
         }
         // cell.incr_ref();
         cell

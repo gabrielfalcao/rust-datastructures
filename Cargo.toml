@@ -11,9 +11,8 @@ debug = []
 
 [lib]
 name = "ds"
-test = true
-
-[dependencies]
+test = false
+doctest = false
 
 [dev-dependencies]
 k9 = "0.12.0"

@@ -10,7 +10,13 @@ fn test_cell_head() {
     assert_equal!(head, Some(Value::from("head")));
 }
 #[test]
-fn test_clone() {
+fn test_clone_null() {
+    let cell = Cell::nil();
+
+    assert_equal!(cell.clone(), Cell::nil());
+}
+#[test]
+fn test_clone_non_null() {
     let mut head = Cell::new(Value::from("head"));
     let mut tail = Cell::new(Value::from("tail"));
     head.add(&mut tail);
