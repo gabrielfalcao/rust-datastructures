@@ -5,10 +5,11 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter::{Extend, FromIterator, IntoIterator};
 use std::marker::PhantomData;
+use std::mem::{ManuallyDrop, MaybeUninit};
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr::NonNull;
 
-use crate::{car, cdr, cons, step, Value, color};
+use crate::{car, cdr, color, cons, step, Value};
 
 pub struct Cell<'c> {
     head: *const Value<'c>,
@@ -23,15 +24,19 @@ impl<'c> Cell<'c> {
         }
     }
 
-    pub fn new(value: &Value<'c>) -> Cell<'c> {
-        step!(format!("head value is: {}", color::ptr(value)));
+    pub fn new(value: Value<'c>) -> Cell<'c> {
         let mut cell = Cell::nil();
-        let head = value as *const Value<'c>;
         step!(format!("enter unsafe, head is: {}", color::ptr(cell.head)));
         unsafe {
             // step!("within unsafe: assign pointer");
             step!(format!("within unsafe, head is: {}", color::ptr(cell.head)));
+            let layout = Layout::new::<Value<'c>>();
+            let ptr = std::alloc::alloc(layout);
+            step!(format!("within unsafe, allocated new ptr: {}", color::ptr(ptr)));
+            let head = ptr as *mut Value<'c>;
             step!(format!("within unsafe, assigning new head: {}", color::ptr(head)));
+            let layout = Layout::new::<Value<'c>>();
+            head.write(value);
             cell.head = head;
             step!(format!("exiting unsafe, head is: {}", color::ptr(cell.head)));
 
@@ -107,7 +112,6 @@ impl<'c> Cell<'c> {
         }
     }
 
-
     pub fn is_empty(&self) -> bool {
         self.len() > 0
     }
@@ -151,18 +155,18 @@ impl<'c> Cell<'c> {
 
 impl<'c> From<Value<'c>> for Cell<'c> {
     fn from(value: Value<'c>) -> Cell<'c> {
-        Cell::new(&value)
+        Cell::new(value)
     }
 }
 impl<'c> From<&'c str> for Cell<'c> {
     fn from(value: &'c str) -> Cell<'c> {
         let value = Value::from(value);
-        Cell::new(&value)
+        Cell::new(value)
     }
 }
 impl<'c> From<u8> for Cell<'c> {
     fn from(value: u8) -> Cell<'c> {
-        Cell::new(&Value::Byte(value))
+        Cell::new(Value::Byte(value))
     }
 }
 // impl<'c> From<u64> for Cell<'c> {

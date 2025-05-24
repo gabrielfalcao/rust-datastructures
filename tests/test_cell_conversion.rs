@@ -17,7 +17,7 @@ fn test_cell_from_u8() {
 }
 // #[test]
 // fn test_cell_from_value() {
-//     let cell = Cell::new(&Value::from(0xf1u8));
+//     let cell = Cell::new(Value::from(0xf1u8));
 //     let head = cell.head();
 //     assert_equal!(head, Some(Value::Byte(0xf1u8)));
 // }
