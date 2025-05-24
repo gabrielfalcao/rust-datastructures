@@ -8,21 +8,24 @@ use std::mem::{ManuallyDrop, MaybeUninit};
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr::NonNull;
 
-use crate::{Cell, Value};
+use crate::{Cell, Node, Value};
 
 pub(super) mod null {
-    use super::{Cell, Value};
+    use super::{Cell, Node, Value};
     pub(crate) fn value<'c>() -> *const Value<'c> {
         std::ptr::null::<Value<'c>>()
     }
     pub(crate) fn cell<'c>() -> *const Cell<'c> {
         std::ptr::null::<Cell<'c>>()
     }
+    pub(crate) fn node<'c>() -> *const Node<'c> {
+        std::ptr::null::<Node<'c>>()
+    }
 }
 pub(super) mod alloc {
     use std::alloc::Layout;
 
-    use super::{Cell, Value};
+    use super::{Cell, Node, Value};
     unsafe fn new<T>() -> *mut T {
         let layout = Layout::new::<T>();
         let ptr = unsafe {
@@ -40,11 +43,14 @@ pub(super) mod alloc {
     pub(crate) unsafe fn cell<'c>() -> *mut Cell<'c> {
         unsafe { self::new::<Cell<'c>>() }
     }
+    pub(crate) unsafe fn node<'c>() -> *mut Node<'c> {
+        unsafe { self::new::<Node<'c>>() }
+    }
 }
 pub(super) mod dealloc {
     use std::alloc::Layout;
 
-    use super::{Cell, Value};
+    use super::{Cell, Node, Value};
     unsafe fn free<T>(ptr: *const T) {
         let layout = Layout::new::<T>();
         unsafe {
@@ -63,5 +69,10 @@ pub(super) mod dealloc {
         #[rustfmt::skip]#[cfg(feature="debug")]
         eprintln!("{} {} {}", crate::color::fg("freeing", 9), crate::color::fg("cell", 137), crate::color::ptr_inv(cell));
         unsafe { self::free::<Cell<'c>>(cell) }
+    }
+    pub(crate) unsafe fn node<'c>(node: *const Node<'c>) {
+        #[rustfmt::skip]#[cfg(feature="debug")]
+        eprintln!("{} {} {}", crate::color::fg("freeing", 9), crate::color::fg("node", 28), crate::color::ptr_inv(node));
+        unsafe { self::free::<Node<'c>>(node) }
     }
 }

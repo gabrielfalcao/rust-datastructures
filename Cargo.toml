@@ -24,6 +24,10 @@ k9 = "0.12.0"
 # path = "./tests/test_current.rs"
 
 [[test]]
+name = "node"
+path = "./tests/test_node.rs"
+
+[[test]]
 name = "cell_conversion"
 path = "./tests/test_cell_conversion.rs"
 
