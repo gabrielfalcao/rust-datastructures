@@ -2,10 +2,7 @@ use std::borrow::{Borrow, Cow, ToOwned};
 use std::ops::Deref;
 use std::rc::Rc;
 
-#[rustfmt::skip]
-use crate::{color_addr, color_back, color_bg, color_bgfg, color_fg, color_fore, colorize, reset};
-
-use crate::{step, Cons};
+use crate::{color, step, Cons};
 
 #[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Default)]
 pub enum Value<'v> {
@@ -33,13 +30,17 @@ impl<'v> Drop for Value<'v> {
     fn drop(&mut self) {
         eprintln!(
             "{}",
-            reset(color_fg(
+            color::reset(color::fg(
                 format!(
-                    "dropping {} {}{}:\t{}",
-                    color_fg("value", 220),
-                    color_fg(format!(" @ "), 255),
-                    color_addr(self),
-                    color_fg(self.to_string(), 201),
+                    "\n{}\n{}{} {}{}: {}{}\n{}",
+                    crate::color::reset(crate::color::bg(" ".repeat(80), color::wrap(197).into())),
+                    crate::color::bgfg("DROPPING ", 16, 197),
+                    crate::color::fg("VALUE", 16),
+                    color::bgfg(format!(" @ "), 16, 231),
+                    color::ptr_inv(self),
+                    color::fore(self.to_string(), 201),
+                    crate::color::reset(crate::color::bg(" ".repeat(39), color::wrap(197).into())),
+                    crate::color::reset(crate::color::bg(" ".repeat(80), color::wrap(197).into())),
                 ),
                 237
             ))

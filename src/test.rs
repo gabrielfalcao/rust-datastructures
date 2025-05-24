@@ -24,22 +24,22 @@ macro_rules! step {
         $crate::step!(format!("{}", $text))
     }};
     ($text:expr) => {{
-        let (bg, fg) = $crate::colors(line!() as usize);
+        let (bg, fg) = $crate::color::couple(line!() as usize);
         eprintln!(
             "{}",
             // "\n{}\n{}\n{}\n",
-            // crate::reset(crate::color_bg(" ".repeat(80), fg)),
-            crate::colorize(
+            // crate::color::reset(crate::color::bg(" ".repeat(80), fg)),
+            crate::color::ansi(
                 format!(
                     "{}:{}{}",
                     $crate::function_name!(),
                     line!(),
                     if $text.is_empty() { String::new() } else { format!("\t{}", $text) }
                 ),
-                fg,
-                bg
+                bg.into(),
+                fg.into(),
             ),
-            // crate::reset(crate::color_bg(" ".repeat(80), fg)),
+            // crate::color::reset(crate::color::bg(" ".repeat(80), fg)),
         );
     }};
     () => {{
@@ -52,19 +52,29 @@ macro_rules! step_test {
         $crate::step_test!(format!("{}", $text))
     }};
     ($text:expr) => {{
-        let (bg, fg) = $crate::colors(line!() as usize);
+        let (bg, fg) = $crate::color::couple(line!() as usize);
         eprintln!(
             "\n{}\n{}\n",
-            crate::reset(crate::color_bg(" ".repeat(80), fg)),
-            crate::colorize(
+            crate::color::reset(crate::color::bg(" ".repeat(80), bg.into())),
+            crate::color::ansi(
                 format!(
-                    "{}:{}{}",
+                    "{}{}{}",
                     $crate::function_name!(),
-                    line!(),
-                    if $text.is_empty() { String::new() } else { format!("\t{}", $text) }
+                    " ".repeat(80),
+                    if $text.is_empty() {
+                        String::new()
+                    } else {
+                        format!(
+                            "\nline {}:\t\t{}{}\n{}",
+                            line!() + 1,
+                            $text,
+                            " ".repeat(50),
+                            " ".repeat(80)
+                        )
+                    }
                 ),
-                fg,
-                bg
+                fg.into(),
+                bg.into(),
             ),
         );
     }};

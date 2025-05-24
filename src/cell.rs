@@ -8,9 +8,7 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr::NonNull;
 
-#[rustfmt::skip]
-use crate::{color_addr, color_back, color_bg, color_bgfg, color_fg, color_fore, colorize, reset, color_ptr};
-use crate::{car, cdr, cons, step, Value};
+use crate::{car, cdr, cons, step, Value, color};
 
 pub struct Cell<'c> {
     head: *const Value<'c>,
@@ -25,37 +23,54 @@ impl<'c> Cell<'c> {
         }
     }
 
-    pub fn new(value: Value<'c>) -> Cell<'c> {
+    pub fn new(value: &Value<'c>) -> Cell<'c> {
+        step!(format!("head value is: {}", color::ptr(value)));
         let mut cell = Cell::nil();
+        let head = value as *const Value<'c>;
+        step!(format!("enter unsafe, head is: {}", color::ptr(cell.head)));
         unsafe {
-            cell.head = std::ptr::from_ref::<Value<'c>>(&value);
+            // step!("within unsafe: assign pointer");
+            step!(format!("within unsafe, head is: {}", color::ptr(cell.head)));
+            step!(format!("within unsafe, assigning new head: {}", color::ptr(head)));
+            cell.head = head;
+            step!(format!("exiting unsafe, head is: {}", color::ptr(cell.head)));
+
+            // cell.head = std::ptr::from_ref::<Value<'c>>(&value);
             // dbg!(&cell);
             // step!(format!("{}", &value));
 
-            // let mut nonnull = NonNull::<Value<'c>>::dangling().add(1);
+            // let mut nonnull = NonNull::<Value<'c>>::dangling();
             // dbg!(&nonnull, &cell);
-            // nonnull.write(value);
+            // // nonnull.write(value);
             // dbg!(&nonnull, &cell);
             // cell.head = nonnull.as_ptr();
             // dbg!(&nonnull, &cell);
         }
+        step!("exit unsafe");
+        dbg!(&cell);
         cell
     }
 
     pub fn head(&self) -> Option<Value<'c>> {
-        if self.head.is_null() {
+        dbg!(self);
+        let value = if self.head.is_null() {
             step!("safe head null");
             None
         } else {
-            step!("enter unsafe");
+            step!(format!("enter unsafe, head is: {}", color::ptr(self.head)));
             let value = unsafe {
-                step!("within unsafe");
-                Some(self.head.read())
+                step!("within unsafe: enter");
+                let value = self.head.read();
+                step!("within unsafe: exit");
+                value
             };
             step!("exit unsafe");
-
-            value
-        }
+            // step!("exit unsafe: clone referenced value");
+            // let value = value.map(|value|value.clone());
+            Some(value)
+        };
+        step!("safe: return value");
+        value
     }
 
     pub fn add(&mut self, new: &Cell<'c>) {
@@ -92,9 +107,6 @@ impl<'c> Cell<'c> {
         }
     }
 
-    pub fn addr(&self) -> String {
-        color_addr(self)
-    }
 
     pub fn is_empty(&self) -> bool {
         self.len() > 0
@@ -139,18 +151,18 @@ impl<'c> Cell<'c> {
 
 impl<'c> From<Value<'c>> for Cell<'c> {
     fn from(value: Value<'c>) -> Cell<'c> {
-        Cell::new(value)
+        Cell::new(&value)
     }
 }
 impl<'c> From<&'c str> for Cell<'c> {
     fn from(value: &'c str) -> Cell<'c> {
         let value = Value::from(value);
-        Cell::new(value)
+        Cell::new(&value)
     }
 }
 impl<'c> From<u8> for Cell<'c> {
     fn from(value: u8) -> Cell<'c> {
-        Cell::new(Value::Byte(value))
+        Cell::new(&Value::Byte(value))
     }
 }
 // impl<'c> From<u64> for Cell<'c> {
@@ -218,16 +230,18 @@ impl std::fmt::Debug for Cell<'_> {
         write!(
             f,
             "Cell@{}[head:{} | tail:{}]",
-            &self.addr(),
+            crate::color::ptr_inv(self),
             if self.head.is_null() {
-                color_fore("null", 196)
+                color::fore("null", 196)
             } else {
-                color_fore(format!("{:016x}", self.head.addr()), 37)
+                color::ptr(self.head)
+                // color::fore(format!("{:016x}", self.head.addr()), 37)
             },
             if self.tail.is_null() {
-                color_fore("null", 196)
+                color::fore("null", 196)
             } else {
-                color_fore(format!("{:016x}", self.tail.addr()), 48)
+                color::ptr(self.tail)
+                // color::fore(format!("{:016x}", self.tail.addr()), 48)
             },
         )
     }
@@ -273,7 +287,7 @@ impl std::fmt::Debug for Cell<'_> {
 //                     fg,
 //                     match self.tail() {
 //                         Some(tail) => {
-//                             color_addr(tail)
+//                             color::addr(tail)
 //                         },
 //                         None => {
 //                             format!("None")
@@ -288,14 +302,14 @@ impl<'c> Drop for Cell<'c> {
     fn drop(&mut self) {
         eprintln!(
             "{}",
-            reset(color_fg(
+            color::reset(color::fg(
                 format!(
                     "dropping {} {}{}:\thead:{}\ttail:{}",
-                    color_fg("cell", 220),
-                    color_fg(format!(" @ "), 255),
-                    color_fg(format!("{:p}", self), 49),
-                    color_ptr(self.head),
-                    color_ptr(self.tail),
+                    color::fg("cell", 220),
+                    color::fg(format!(" @ "), 255),
+                    color::fg(format!("{:p}", self), 49),
+                    color::ptr_inv(self.head),
+                    color::ptr_inv(self.tail),
                 ),
                 237
             ))
