@@ -1,4 +1,3 @@
-use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
 use std::borrow::{Borrow, Cow, ToOwned};
 use std::convert::AsRef;
 use std::fmt::Debug;
@@ -14,38 +13,22 @@ use crate::{car, cdr, color, cons, step, Value};
 pub struct Cell<'c> {
     head: *const Value<'c>,
     tail: *const Cell<'c>,
-}
-
-unsafe fn alloc_value<'c>() -> *mut Value<'c> {
-    let layout = Layout::new::<Value<'c>>();
-    let ptr = unsafe {
-        let ptr = std::alloc::alloc(layout);
-        if ptr.is_null() {
-            handle_alloc_error(layout);
-        }
-        ptr
-    };
-    ptr as *mut Value<'c>
+    refs: usize,
 }
 
 impl<'c> Cell<'c> {
     pub fn nil() -> Cell<'c> {
         Cell {
-            head: std::ptr::null::<Value<'c>>(),
-            tail: std::ptr::null::<Cell<'c>>(),
+            head: internal::null::value(),
+            tail: internal::null::cell(),
+            refs: 0,
         }
     }
 
     pub fn new(value: Value<'c>) -> Cell<'c> {
         let mut cell = Cell::nil();
         unsafe {
-            let layout = Layout::new::<Value<'c>>();
-            let ptr = std::alloc::alloc(layout);
-            if ptr.is_null() {
-                handle_alloc_error(layout);
-            }
-            let head = ptr as *mut Value<'c>;
-            let layout = Layout::new::<Value<'c>>();
+            let head = internal::alloc::value();
             head.write(value);
             cell.head = head;
         }
@@ -65,10 +48,19 @@ impl<'c> Cell<'c> {
         value
     }
 
-    pub fn add(&mut self, new: &Cell<'c>) {
+    pub fn add(&mut self, mut new: &mut Cell<'c>) {
+        new.refs += 1;
+        self.refs += 1;
+        // crate::step!(format!("\nadding\n->{:#?}\n  to\n    ->{:#?}\n", new, self));
         if self.tail.is_null() {
             unsafe {
-                let mut new_tail = std::ptr::from_ref::<Cell<'c>>(new);
+                let mut new_tail = std::ptr::from_mut::<Cell<'c>>(new);
+                // eprintln!("\ncopying new_tail cell {}\n", crate::color::ptr(new_tail));
+                // eprintln!("\nallocating for tail {}\n", crate::color::ptr(self.tail));
+                // let new_tail = internal::alloc::cell();
+                // let new_tail = new as *const Cell<'c>;
+                // new_tail.write(new_tail.read());
+                // eprintln!("\nnew tail is {}\n", crate::color::ptr(new_tail));
                 self.tail = new_tail;
             }
         } else {
@@ -77,6 +69,7 @@ impl<'c> Cell<'c> {
                 tail.add(new);
             }
         }
+        // crate::step!(format!("\nnew tail\n  ->{:#?}\n    -> {:#?}\n", self, new));
     }
 
     pub fn pop(&mut self) -> bool {
@@ -150,37 +143,37 @@ impl<'c> From<u8> for Cell<'c> {
         Cell::new(Value::Byte(value))
     }
 }
-// impl<'c> From<u64> for Cell<'c> {
-//     fn from(value: u64) -> Cell<'c> {
-//         if value < u8::MAX.into() {
-//             Cell::new(Value::Byte(value as u8))
-//         } else {
-//             Cell::new(Value::UInt(value))
-//         }
-//     }
-// }
-// impl<'c> From<i32> for Cell<'c> {
-//     fn from(value: i32) -> Cell<'c> {
-//         if let Ok(value) = TryInto::<u64>::try_into(value) {
-//             Cell::new(Value::UInt(value))
-//         } else {
-//             Cell::new(Value::Int(value.into()))
-//         }
-//     }
-// }
-// impl<'c> From<i64> for Cell<'c> {
-//     fn from(value: i64) -> Cell<'c> {
-//         Cell::new(Value::from(value))
-//     }
-// }
+impl<'c> From<u64> for Cell<'c> {
+    fn from(value: u64) -> Cell<'c> {
+        if value < u8::MAX.into() {
+            Cell::new(Value::Byte(value as u8))
+        } else {
+            Cell::new(Value::UInt(value))
+        }
+    }
+}
+impl<'c> From<i32> for Cell<'c> {
+    fn from(value: i32) -> Cell<'c> {
+        if let Ok(value) = TryInto::<u64>::try_into(value) {
+            Cell::new(Value::UInt(value))
+        } else {
+            Cell::new(Value::Int(value.into()))
+        }
+    }
+}
+impl<'c> From<i64> for Cell<'c> {
+    fn from(value: i64) -> Cell<'c> {
+        Cell::new(Value::from(value))
+    }
+}
 
 impl<'c> PartialEq<Cell<'c>> for Cell<'c> {
     fn eq(&self, other: &Cell<'c>) -> bool {
         if self.head.is_null() == other.head.is_null() {
             true
-        } else if let Some(mine) = self.head() {
-            if let Some(theirs) = other.head() {
-                return mine == theirs;
+        } else if let Some(head) = self.head() {
+            if let Some(other) = other.head() {
+                return head == other;
             } else {
                 false
             }
@@ -199,17 +192,42 @@ impl<'c> Clone for Cell<'c> {
     fn clone(&self) -> Cell<'c> {
         let mut cell = Cell::nil();
         unsafe {
-            cell.head.cast_mut().write(self.head.read());
-            cell.tail.cast_mut().write(self.tail.read());
+            let head = internal::alloc::value();
+            head.write(self.head.read());
+            let tail = internal::alloc::cell();
+            tail.write(self.tail.read());
+            cell.head = head;
+            cell.tail = tail;
         }
         cell
     }
 }
+impl<'c> Drop for Cell<'c> {
+    fn drop(&mut self) {
+        #[rustfmt::skip]#[cfg(feature="debug")]
+        eprintln!("{}",color::reset(color::bgfg(format!("{}{}{}{}:{}",crate::color::fg("dropping ",196),crate::color::fg("cell",49),color::bgfg(format!("@"),231,16),color::ptr_inv(self),color::fore(format!("{:#?}",self),201)),197,16)));
+
+        if self.refs > 0 {
+            #[rustfmt::skip]#[cfg(feature="debug")]
+            eprintln!("{}",color::reset(color::bgfg(format!("{}{}{}{}:{}",crate::color::fg("decrementing refs of ",220),crate::color::fg("cell",49),color::bgfg(format!("@"),231,16),color::ptr_inv(self),color::fore(format!("{:#?}",self),201)),197,16)));
+            self.refs -= 1;
+        } else {
+            unsafe {
+                internal::dealloc::value(self.head);
+                internal::dealloc::cell(self.tail);
+            }
+        }
+    }
+}
+
 impl std::fmt::Debug for Cell<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "Cell@{}[head:{} | tail:{}]",
+            "{}{}{}{}[head:{} | tail:{}]",
+            crate::color::reset(""),
+            crate::color::fg("Cell", 87),
+            crate::color::fg("@", 231),
             crate::color::ptr_inv(self),
             if self.head.is_null() {
                 color::fore("null", 196)
@@ -227,73 +245,61 @@ impl std::fmt::Debug for Cell<'_> {
     }
 }
 
-// impl std::fmt::Debug for Cell<'_> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         let head = self.head();
-//         write!(
-//             f,
-//             "\nCell@\x1b[1;38;5;49m{}\x1b[0m[\x1b[1;48;5;{}m\x1b[1;38;5;16m{}\x1b[0m] -> {}\x1b[0m\n",
-//             &self.addr(),
-//             match &head {
-//                 Some(Value::Nil) => 196,
-//                 Some(Value::String(symbol)) => match symbol.to_string().as_str() {
-//                     "head" => 136,
-//                     "tail" => 33,
-//                     _ => 196,
-//                 },
-//                 Some(Value::UInt(_)) => 39,
-//                 Some(Value::Int(_)) => 74,
-//                 Some(Value::Byte(_)) => 79,
-//                 None => 88
-//             },
-//             head.map(|head|head.to_string()).unwrap_or_default(),
-//             {
-//                 let bg = match self.tail.addr() {
-//                     0 => 16,
-//                     8 => 232,
-//                     _ => match self.tail() {
-//                         Some(_) => 202,
-//                         None => 54,
-//                     },
-//                 };
-//                 let fg = match self.tail.addr() {
-//                     0 => 255,
-//                     8 => 202,
-//                     _ => 160,
-//                 };
-//                 format!(
-//                     "[\x1b[1;48;5;{}mtail:\x1b[1;38;5;{}m{}]",
-//                     bg,
-//                     fg,
-//                     match self.tail() {
-//                         Some(tail) => {
-//                             color::addr(tail)
-//                         },
-//                         None => {
-//                             format!("None")
-//                         },
-//                     }
-//                 )
-//             }
-//         )
-//     }
-// }
-impl<'c> Drop for Cell<'c> {
-    fn drop(&mut self) {
-        eprintln!(
-            "{}",
-            color::reset(color::bgfg(
-                format!(
-                    "{}{} {}{}: {}",
-                    crate::color::fg("dropping ", 237),
-                    crate::color::fg("cell", 136),
-                    color::bgfg(format!(" @ "), 231, 16),
-                    color::ptr_inv(self),
-                    color::fore(format!("{:#?}", self), 201),
-                ),
-                197,
-                16,
-            ))
-        )
+mod internal {
+    pub(self) use super::{Cell, Value};
+    pub(super) mod null {
+        use super::{Cell, Value};
+        pub(in crate::cell) fn value<'c>() -> *const Value<'c> {
+            std::ptr::null::<Value<'c>>()
+        }
+        pub(in crate::cell) fn cell<'c>() -> *const Cell<'c> {
+            std::ptr::null::<Cell<'c>>()
+        }
+    }
+    pub(super) mod alloc {
+        use std::alloc::Layout;
+
+        use super::{Cell, Value};
+        unsafe fn new<T>() -> *mut T {
+            let layout = Layout::new::<T>();
+            let ptr = unsafe {
+                let ptr = std::alloc::alloc(layout);
+                if ptr.is_null() {
+                    std::alloc::handle_alloc_error(layout);
+                }
+                ptr
+            };
+            ptr as *mut T
+        }
+        pub(in crate::cell) unsafe fn value<'c>() -> *mut Value<'c> {
+            unsafe { self::new::<Value<'c>>() }
+        }
+        pub(in crate::cell) unsafe fn cell<'c>() -> *mut Cell<'c> {
+            unsafe { self::new::<Cell<'c>>() }
+        }
+    }
+    pub(super) mod dealloc {
+        use std::alloc::Layout;
+
+        use super::{Cell, Value};
+        unsafe fn free<T>(ptr: *const T) {
+            let layout = Layout::new::<T>();
+            unsafe {
+                let ptr = ptr as *mut u8;
+                #[rustfmt::skip]#[cfg(feature="debug")]
+                eprintln!("{} {} {}", crate::color::fg("freeing", 9), crate::color::fg("ptr", 231), crate::color::ptr_inv(ptr));
+                std::alloc::dealloc(ptr, layout);
+            };
+        }
+        pub(in crate::cell) unsafe fn value<'c>(value: *const Value<'c>) {
+            #[rustfmt::skip]#[cfg(feature="debug")]
+            eprintln!("{} {} {}", crate::color::fg("freeing", 9), crate::color::fg("value", 136), crate::color::ptr_inv(value));
+            unsafe { self::free::<Value<'c>>(value) }
+        }
+        pub(in crate::cell) unsafe fn cell<'c>(cell: *const Cell<'c>) {
+            #[rustfmt::skip]#[cfg(feature="debug")]
+            eprintln!("{} {} {}", crate::color::fg("freeing", 9), crate::color::fg("cell", 137), crate::color::ptr_inv(cell));
+            unsafe { self::free::<Cell<'c>>(cell) }
+        }
     }
 }

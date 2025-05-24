@@ -9,7 +9,7 @@ fn value_from_static_str() {
     let value = "static-str";
     assert_display_equal!(Value::from(value), "static-str");
     let value = "static-str";
-    assert_debug_equal!(Value::from(value), "'static-str");
+    assert_debug_equal!(Value::from(value), "\"static-str\"");
 }
 #[test]
 fn value_from_str() {
@@ -18,7 +18,7 @@ fn value_from_str() {
     let value = "str".to_string().leak();
     assert_display_equal!(Value::from(value), "str");
     let value = "str".to_string().leak();
-    assert_debug_equal!(Value::from(value), "'str");
+    assert_debug_equal!(Value::from(value), "\"str\"");
 }
 #[test]
 fn value_from_string() {
@@ -27,7 +27,7 @@ fn value_from_string() {
     let value = "string".to_string();
     assert_display_equal!(Value::from(value), "string");
     let value = "string".to_string();
-    assert_debug_equal!(Value::from(value), "'string");
+    assert_debug_equal!(Value::from(value), "\"string\"");
 }
 #[test]
 fn value_display_nil() {

@@ -32,7 +32,7 @@ pub fn couple(color: usize) -> (u8, u8) {
 
 pub fn invert_bw(color: u8) -> u8 {
     match color {
-        0 | 8 | 16..21 | 88..93 | 232..239 => 255,
+        0 | 8 | 16..21 | 52..61 | 88..93 | 232..239 => 231,
         _ => 16,
     }
 }
@@ -75,12 +75,12 @@ pub fn ptr_repr<T: Sized + Debug>(
 pub fn ptr<T: Sized + Debug>(ptr: *const T) -> String {
     let (bg, fg) = ptr_colors(ptr);
     let (null_bg, null_fg) = couple(9);
-    let (nonnull_bg, nonnull_fg) = couple(137);
+    let (nonnull_bg, nonnull_fg) = couple(101);
     ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg,nonnull_fg)
 }
 pub fn ptr_inv<T: Sized + Debug>(ptr: *const T) -> String {
     let (fg, bg) = ptr_colors(ptr);
     let (null_fg, null_bg) = couple(9);
-    let (nonnull_fg, nonnull_bg) = couple(137);
+    let (nonnull_fg, nonnull_bg) = couple(101);
     ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg,nonnull_fg)
 }

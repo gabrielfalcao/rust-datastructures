@@ -36,8 +36,8 @@ macro_rules! step {
                     line!(),
                     if $text.is_empty() { String::new() } else { format!("\t{}", $text) }
                 ),
-                bg.into(),
                 fg.into(),
+                bg.into(),
             ),
             // crate::color::reset(crate::color::bg(" ".repeat(80), fg)),
         );

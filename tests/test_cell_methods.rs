@@ -9,25 +9,37 @@ fn test_cell_head() {
 
     assert_equal!(head, Some(Value::from("head")));
 }
+#[test]
+fn test_clone() {
+    let mut head = Cell::new(Value::from("head"));
+    let mut tail = Cell::new(Value::from("tail"));
+    head.add(&mut tail);
+
+    let cell = head.clone();
+    assert_equal!(head, cell);
+}
 
 #[test]
 fn test_add_when_tail_is_null() {
     let mut head = Cell::new(Value::from("head"));
     let mut cell = Cell::new(Value::from("cell"));
 
-    assert_equal!(cell.len(), 1);
-    assert_equal!(cell.values(), vec![Value::from("cell")]);
+    assert_equal!(head.values(), vec![Value::from("head")]);
+    assert_equal!(head.len(), 1);
 
-    head.add(&cell);
+    head.add(&mut cell);
 
     assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell")]);
     assert_equal!(head.len(), 2);
 
     let mut tail = Cell::new(Value::from("tail"));
+
     assert_equal!(tail.len(), 1);
     assert_equal!(tail.values(), vec![Value::from("tail")]);
 
-    cell.add(&tail);
+    assert_equal!(cell.values(), vec![Value::from("cell")]);
+    assert_equal!(cell.len(), 1);
+    cell.add(&mut tail);
 
     assert_equal!(
         head.values(),
@@ -49,11 +61,11 @@ fn test_add_when_tail_is_not_necessarily_null() {
     assert_equal!(head.values(), vec![Value::from("head")]);
     assert_equal!(head.len(), 1);
 
-    head.add(&cell);
+    head.add(&mut cell);
     assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell")]);
     assert_equal!(head.len(), 2);
 
-    head.add(&tail);
+    head.add(&mut tail);
     assert_equal!(
         head.values(),
         vec![Value::from("head"), Value::from("cell"), Value::from("tail")]
@@ -68,7 +80,7 @@ fn test_add_and_pop() {
     assert_equal!(head.len(), 1);
     assert_equal!(head.values(), vec![Value::from("head")]);
 
-    head.add(&cell);
+    head.add(&mut cell);
 
     assert_equal!(head.values(), vec![Value::from("head"), Value::from("cell")]);
     assert_equal!(head.len(), 2);

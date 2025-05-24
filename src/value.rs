@@ -28,21 +28,21 @@ impl<'v> Value<'_> {
 }
 impl<'v> Drop for Value<'v> {
     fn drop(&mut self) {
-        eprintln!(
-            "{}",
-            color::reset(color::bgfg(
-                format!(
-                    "{}{} {}{}: {}",
-                    crate::color::fg("dropping ", 237),
-                    crate::color::fg("value", 136),
-                    color::bgfg(format!(" @ "), 231, 16),
-                    color::ptr_inv(self),
-                    color::fore(format!("{:#?}", self), 201),
-                ),
-                197,
-                16,
-            ))
-        )
+        // eprintln!(
+        //     "{}",
+        //     color::reset(color::bgfg(
+        //         format!(
+        //             "{}{} {}{}: {}",
+        //             crate::color::fg("dropping ", 237),
+        //             crate::color::fg("value", 136),
+        //             color::bgfg(format!(" @ "), 231, 16),
+        //             color::ptr_inv(self),
+        //             color::fore(format!("{:#?}", self), 201),
+        //         ),
+        //         197,
+        //         16,
+        //     ))
+        // );
         // eprintln!(
         //     "{}",
         //     color::reset(color::fg(
