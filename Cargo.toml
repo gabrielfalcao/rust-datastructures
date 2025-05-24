@@ -28,6 +28,10 @@ name = "cell_conversion"
 path = "./tests/test_cell_conversion.rs"
 
 [[test]]
+name = "cons"
+path = "./tests/test_cons.rs"
+
+[[test]]
 name = "cell_methods"
 path = "./tests/test_cell_methods.rs"
 

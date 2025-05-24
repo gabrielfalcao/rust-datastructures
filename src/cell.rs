@@ -25,6 +25,10 @@ impl<'c> Cell<'c> {
         }
     }
 
+    pub fn is_nil(&self) -> bool {
+        self.head.is_null() && self.tail.is_null()
+    }
+
     pub fn new(value: Value<'c>) -> Cell<'c> {
         let mut cell = Cell::nil();
         unsafe {
@@ -49,37 +53,58 @@ impl<'c> Cell<'c> {
     }
 
     pub fn add(&mut self, mut new: &mut Cell<'c>) {
-        new.refs += 1;
-        self.refs += 1;
-        // crate::step!(format!("\nadding\n->{:#?}\n  to\n    ->{:#?}\n", new, self));
-        if self.tail.is_null() {
+        if self.head.is_null() {
+            // let mut cell = std::ptr::from_mut::<Cell<'c>>(new);
             unsafe {
-                let mut new_tail = std::ptr::from_mut::<Cell<'c>>(new);
-                // eprintln!("\ncopying new_tail cell {}\n", crate::color::ptr(new_tail));
-                // eprintln!("\nallocating for tail {}\n", crate::color::ptr(self.tail));
-                // let new_tail = internal::alloc::cell();
-                // let new_tail = new as *const Cell<'c>;
-                // new_tail.write(new_tail.read());
-                // eprintln!("\nnew tail is {}\n", crate::color::ptr(new_tail));
-                self.tail = new_tail;
+                if !new.head.is_null() {
+                    self.head = internal::alloc::value();
+                    std::ptr::swap(self.head as *mut Value<'c>, new.head as *mut Value<'c>);
+                }
+
+                if !new.tail.is_null() {
+                    let refs = new.refs;
+                    let mut tail = new.tail.read();
+                    let head = internal::alloc::value();
+                    if !tail.head.is_null() {
+                        head.write(tail.head.read());
+                    }
+                    new.head = head;
+                    self.refs = refs;
+                }
             }
         } else {
-            unsafe {
-                let mut tail = &mut *self.tail.cast_mut();
-                tail.add(new);
+            new.incr_ref();
+            self.incr_ref();
+            // crate::step!(format!("\nadding\n->{:#?}\n  to\n    ->{:#?}\n", new, self));
+            if self.tail.is_null() {
+                unsafe {
+                    let mut new_tail = std::ptr::from_mut::<Cell<'c>>(new);
+                    // eprintln!("\ncopying new_tail cell {}\n", crate::color::ptr(new_tail));
+                    // eprintln!("\nallocating for tail {}\n", crate::color::ptr(self.tail));
+                    // let new_tail = internal::alloc::cell();
+                    // let new_tail = new as *const Cell<'c>;
+                    // new_tail.write(new_tail.read());
+                    // eprintln!("\nnew tail is {}\n", crate::color::ptr(new_tail));
+                    self.tail = new_tail;
+                }
+            } else {
+                unsafe {
+                    let mut tail = &mut *self.tail.cast_mut();
+                    tail.add(new);
+                }
             }
+            // crate::step!(format!("\nnew tail\n  ->{:#?}\n    -> {:#?}\n", self, new));
         }
-        // crate::step!(format!("\nnew tail\n  ->{:#?}\n    -> {:#?}\n", self, new));
     }
 
     pub fn pop(&mut self) -> bool {
         if !self.tail.is_null() {
             unsafe {
-                self.tail = std::ptr::null::<Cell>();
+                self.tail = internal::null::cell();
             }
             true
         } else if !self.head.is_null() {
-            self.head = std::ptr::null::<Value>();
+            self.head = internal::null::value();
             true
         } else {
             false
@@ -124,6 +149,16 @@ impl<'c> Cell<'c> {
             values.extend(tail.values());
         }
         values
+    }
+
+    fn incr_ref(&mut self) {
+        self.refs += 1;
+        unsafe {
+            let mut tail = self.tail as *mut Cell<'c>;
+            if let Some(mut tail) = tail.as_mut() {
+                tail.refs += 1;
+            }
+        }
     }
 }
 
@@ -172,8 +207,8 @@ impl<'c> PartialEq<Cell<'c>> for Cell<'c> {
         if self.head.is_null() == other.head.is_null() {
             true
         } else if let Some(head) = self.head() {
-            if let Some(other) = other.head() {
-                return head == other;
+            if let Some(value) = other.head() {
+                return head == value && (self.tail() == other.tail())
             } else {
                 false
             }
@@ -196,9 +231,11 @@ impl<'c> Clone for Cell<'c> {
             head.write(self.head.read());
             let tail = internal::alloc::cell();
             tail.write(self.tail.read());
+            cell.refs = self.refs;
             cell.head = head;
             cell.tail = tail;
         }
+        // cell.incr_ref();
         cell
     }
 }

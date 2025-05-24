@@ -2,7 +2,7 @@ use std::borrow::{Borrow, Cow, ToOwned};
 use std::ops::Deref;
 use std::rc::Rc;
 
-use crate::{color, step, Cons};
+use crate::{color, step};
 
 #[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Default)]
 pub enum Value<'v> {
