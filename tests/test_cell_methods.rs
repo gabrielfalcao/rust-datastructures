@@ -32,8 +32,6 @@ fn test_add_when_head_is_null() {
     head.add(&mut cell);
     assert_equal!(head.values(), vec![Value::from("head")]);
     assert_equal!(head.len(), 1);
-
-
 }
 #[test]
 fn test_add_when_tail_is_null() {

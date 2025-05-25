@@ -1,7 +1,6 @@
 #![allow(unused)]
-use k9::assert_equal;
-
 use ds::*;
+use k9::assert_equal;
 
 #[test]
 fn value_equals() {

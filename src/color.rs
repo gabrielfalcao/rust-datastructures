@@ -63,7 +63,7 @@ pub fn ptr_repr<T: Sized + Debug>(
 ) -> String {
     format!(
         "{}{}{}",
-        reset(bgfg(format!("{:08x}", ptr.addr()), fg.into(), bg.into())),
+        reset(bgfg(format!("0x{:016x}", ptr.addr()), fg.into(), bg.into())),
         bgfg(":", 231, 16),
         if ptr.is_null() {
             reset(bgfg("null", null_fg.into(), null_bg.into()))
@@ -76,11 +76,11 @@ pub fn ptr<T: Sized + Debug>(ptr: *const T) -> String {
     let (bg, fg) = ptr_colors(ptr);
     let (null_bg, null_fg) = couple(9);
     let (nonnull_bg, nonnull_fg) = couple(101);
-    ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg,nonnull_fg)
+    ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
 }
 pub fn ptr_inv<T: Sized + Debug>(ptr: *const T) -> String {
     let (fg, bg) = ptr_colors(ptr);
     let (null_fg, null_bg) = couple(9);
     let (nonnull_fg, nonnull_bg) = couple(101);
-    ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg,nonnull_fg)
+    ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
 }

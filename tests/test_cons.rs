@@ -29,7 +29,6 @@ fn test_car() {
     assert_equal!(car(&cell), Value::from("head"));
 }
 
-
 #[test]
 fn test_cdr() {
     let cell = list!("head", "middle", 33u8, "tail");

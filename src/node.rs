@@ -6,11 +6,11 @@ use std::iter::{Extend, FromIterator, IntoIterator};
 use std::marker::PhantomData;
 use std::mem::{ManuallyDrop, MaybeUninit};
 use std::ops::{Deref, DerefMut, Index, IndexMut};
+use std::pin::Pin;
 use std::ptr::NonNull;
 
-use crate::{car, cdr, color, cons, internal, step, Value};
+use crate::{color, internal, step, Value};
 
-#[derive(Debug)]
 pub struct Node<'c> {
     parent: *const Node<'c>,
     item: *const Value<'c>,
@@ -31,7 +31,7 @@ impl<'c> Node<'c> {
     }
 
     pub fn is_nil(&self) -> bool {
-        self.item.is_null() && self.left.is_null() && self.right.is_null()
+        self.item.is_null() && self.left.is_null() && self.right.is_null() && self.parent.is_null()
     }
 
     pub fn new(value: Value<'c>) -> Node<'c> {
@@ -66,19 +66,20 @@ impl<'c> Node<'c> {
         }
     }
 
-    pub fn set_left(&mut self, node: &'c Node<'c>) -> &'c Node<'c> {
+    pub fn set_left(&mut self, node: &'c mut Node<'c>) -> &'c Node<'c> {
         let mut left = Node::nil();
         let value = node.value() as *const Value<'c>;
-        let old = self.left();
         unsafe {
             let item = internal::alloc::value();
             item.write(value.read());
             left.item = item;
+            left.set_parent(self);
             let mut node = internal::alloc::node();
+            let left_ref = &left as *const Node<'c>;
             node.write(left);
             self.left = node;
+            left_ref.as_ref().unwrap()
         }
-        old
     }
 
     pub fn left(&self) -> &'c Node<'c> {
@@ -99,22 +100,22 @@ impl<'c> Node<'c> {
         } else {
             self.left().value().clone()
         }
-
     }
 
-    pub fn set_right(&mut self, node: &'c Node<'c>) -> &'c Node<'c> {
+    pub fn set_right(&mut self, node: &'c mut Node<'c>) -> &'c Node<'c> {
         let mut right = Node::nil();
         let value = node.value() as *const Value<'c>;
-        let old = self.right();
         unsafe {
             let item = internal::alloc::value();
             item.write(value.read());
             right.item = item;
+            right.set_parent(self);
             let mut node = internal::alloc::node();
+            let right_ref = &right as *const Node<'c>;
             node.write(right);
             self.right = node;
+            right_ref.as_ref().unwrap()
         }
-        old
     }
 
     pub fn right(&self) -> &'c Node<'c> {
@@ -137,7 +138,23 @@ impl<'c> Node<'c> {
         }
     }
 
-    // ICAgIGZuIGluY3JfcmVmKCZtdXQgc2VsZikgewogICAgICAgIHNlbGYucmVmcyArPSAxOwogICAgICAgIGlmICFzZWxmLnBhcmVudC5pc19udWxsKCkgewogICAgICAgICAgICB1bnNhZmUgewogICAgICAgICAgICAgICAgbGV0IG11dCBwYXJlbnQgPSBzZWxmLnBhcmVudCBhcyAqbXV0IE5vZGU8J2M+OwogICAgICAgICAgICAgICAgaWYgbGV0IFNvbWUobXV0IHBhcmVudCkgPSBwYXJlbnQuYXNfbXV0KCkgewogICAgICAgICAgICAgICAgICAgIHBhcmVudC5yZWZzICs9IDE7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICB9Cg==
+    fn set_parent(&mut self, parent: *const Node<'c>) {
+        if !self.parent.is_null() {}
+        self.parent = parent;
+        self.incr_ref();
+    }
+
+    fn incr_ref(&mut self) {
+        self.refs += 1;
+        if !self.parent.is_null() {
+            unsafe {
+                let mut parent = self.parent as *mut Node<'c>;
+                if let Some(mut parent) = parent.as_mut() {
+                    parent.refs += 1;
+                }
+            }
+        }
+    }
 }
 
 impl<'c> PartialEq<Node<'c>> for Node<'c> {
@@ -163,6 +180,11 @@ impl<'c> Clone for Node<'c> {
                 item.write(self.item.read());
                 node.item = item;
             }
+            if !self.parent.is_null() {
+                let parent = internal::alloc::node();
+                parent.write(self.parent.read());
+                node.parent = parent;
+            }
             if !self.left.is_null() {
                 let left = internal::alloc::node();
                 left.write(self.left.read());
@@ -177,3 +199,45 @@ impl<'c> Clone for Node<'c> {
         node
     }
 }
+
+impl std::fmt::Debug for Node<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}{}{}{}(parent:{})[left:{} | right:{}][item={}]",
+            crate::color::reset(""),
+            crate::color::fg("Node", 87),
+            crate::color::fg("@", 231),
+            crate::color::ptr(self),
+            crate::color::ptr(self.parent),
+            crate::color::ptr(self.left),
+            crate::color::ptr(self.right),
+            if self.item.is_null() {
+                color::fore("null", 196)
+            } else {
+                color::fore(format!("{:#?}", self.value()), 220)
+            },
+        )
+    }
+}
+
+// impl<'c> Drop for Node<'c> {
+//     fn drop(&mut self) {
+//         #[rustfmt::skip]//#[cfg(feature="debug")]
+//         eprintln!("{}",color::reset(color::bgfg(format!("{}{}{}{}:{}",crate::color::fg("dropping ",196),crate::color::fg("node",49),color::bgfg(format!("@"),231,16),color::ptr(self),color::fore(format!("{:#?}",self),201)),197,16)));
+//
+//         if self.refs > 0 {
+//             #[rustfmt::skip]//#[cfg(feature="debug")]
+//             eprintln!("{}",color::reset(color::bgfg(format!("{}{}{}{}:{}",crate::color::fg("decrementing refs of ",220),crate::color::fg("node",49),color::bgfg(format!("@"),231,16),color::ptr(self),color::fore(format!("{:#?}",self),201)),197,16)));
+//             self.refs -= 1;
+//         } else {
+//             unsafe {
+//                 internal::dealloc::value(self.item);
+//                 internal::dealloc::node(self.parent);
+//                 internal::dealloc::node(self.left);
+//                 internal::dealloc::node(self.right);
+//             }
+//         }
+//     }
+// }
+//
