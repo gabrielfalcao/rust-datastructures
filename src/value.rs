@@ -4,17 +4,17 @@ use std::rc::Rc;
 
 use crate::{color, step};
 
-#[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Default)]
-pub enum Value<'v> {
+#[derive(Clone, PartialOrd, Ord, Default, PartialEq, Eq)]
+pub enum Value<'c> {
     #[default]
     Nil,
-    String(Cow<'v, str>),
+    String(Cow<'c, str>),
     Byte(u8),
     UInt(u64),
     Int(i64),
 }
-impl<'v> Value<'_> {
-    pub fn nil() -> Value<'v> {
+impl<'c> Value<'_> {
+    pub fn nil() -> Value<'c> {
         Value::Nil
     }
 
@@ -26,7 +26,24 @@ impl<'v> Value<'_> {
         }
     }
 }
-impl<'v> Drop for Value<'v> {
+// impl<'c> PartialEq<&Value<'c>> for Value<'c> {
+//     fn eq(&self, other: &&Value<'c>) -> bool {
+//         match *other {
+//             Value::Nil => *self == &Value::Nil,
+//             #[rustfmt::skip]
+//             Value::Byte(other) => if let Value::Byte(byte) = self {*byte == *other} else {false},
+//             #[rustfmt::skip]
+//             Value::Int(other) => if let Value::Int(int) = self {*int == *other} else {false},
+//             #[rustfmt::skip]
+//             Value::UInt(other) => if let Value::UInt(uint) = self {*uint == *other} else {false},
+//             #[rustfmt::skip]
+//             Value::String(other) => if let Value::String(uint) = self {*uint == *other} else {false},
+//         }
+//     }
+// }
+// impl<'c> Eq<&Value<'c>> for Value<'c> {}
+
+impl<'c> Drop for Value<'c> {
     fn drop(&mut self) {
         // eprintln!(
         //     "{}",
@@ -94,43 +111,43 @@ impl std::fmt::Debug for Value<'_> {
     }
 }
 
-impl<'v> From<u8> for Value<'v> {
-    fn from(value: u8) -> Value<'v> {
+impl<'c> From<u8> for Value<'c> {
+    fn from(value: u8) -> Value<'c> {
         Value::Byte(value)
     }
 }
-impl<'v> From<u64> for Value<'v> {
-    fn from(value: u64) -> Value<'v> {
+impl<'c> From<u64> for Value<'c> {
+    fn from(value: u64) -> Value<'c> {
         Value::UInt(value)
     }
 }
-impl<'v> From<i64> for Value<'v> {
-    fn from(value: i64) -> Value<'v> {
+impl<'c> From<i64> for Value<'c> {
+    fn from(value: i64) -> Value<'c> {
         Value::Int(value)
     }
 }
-impl<'v> From<&'v str> for Value<'v> {
-    fn from(value: &'v str) -> Value<'v> {
+impl<'c> From<&'c str> for Value<'c> {
+    fn from(value: &'c str) -> Value<'c> {
         Value::String(Cow::from(value))
     }
 }
-impl<'v> From<Cow<'v, str>> for Value<'v> {
-    fn from(value: Cow<'v, str>) -> Value<'v> {
+impl<'c> From<Cow<'c, str>> for Value<'c> {
+    fn from(value: Cow<'c, str>) -> Value<'c> {
         Value::from(value.into_owned())
     }
 }
-impl<'v> From<&'v mut str> for Value<'v> {
-    fn from(value: &'v mut str) -> Value<'v> {
-        Value::String(Cow::<'v, str>::Borrowed(&*value))
+impl<'c> From<&'c mut str> for Value<'c> {
+    fn from(value: &'c mut str) -> Value<'c> {
+        Value::String(Cow::<'c, str>::Borrowed(&*value))
     }
 }
-impl<'v> From<String> for Value<'v> {
-    fn from(value: String) -> Value<'v> {
+impl<'c> From<String> for Value<'c> {
+    fn from(value: String) -> Value<'c> {
         Value::String(Cow::from(value))
     }
 }
-impl<'v> From<Option<String>> for Value<'v> {
-    fn from(value: Option<String>) -> Value<'v> {
+impl<'c> From<Option<String>> for Value<'c> {
+    fn from(value: Option<String>) -> Value<'c> {
         match value {
             None => Value::Nil,
             Some(value) => Value::from(value),

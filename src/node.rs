@@ -66,22 +66,15 @@ impl<'c> Node<'c> {
         }
     }
 
-    pub fn set_left(&mut self, node: &'c mut Node<'c>) -> &'c Node<'c> {
-        let mut left = Node::nil();
-        let value = node.value() as *const Value<'c>;
+    pub fn set_left(&mut self, mut left: Node<'c>) -> Node<'c> {
+        left.set_parent(self);
         unsafe {
-            let item = internal::alloc::value();
-            item.write(value.read());
-            left.item = item;
-            left.set_parent(self);
             let mut node = internal::alloc::node();
-            let left_ref = &left as *const Node<'c>;
-            node.write(left);
+            node.write(left.clone());
             self.left = node;
-            left_ref.as_ref().unwrap()
+            left
         }
     }
-
     pub fn left(&self) -> &'c Node<'c> {
         if self.left.is_null() {
             let left = Node::nil();
@@ -102,19 +95,13 @@ impl<'c> Node<'c> {
         }
     }
 
-    pub fn set_right(&mut self, node: &'c mut Node<'c>) -> &'c Node<'c> {
-        let mut right = Node::nil();
-        let value = node.value() as *const Value<'c>;
+    pub fn set_right(&mut self, mut right: Node<'c>) -> Node<'c> {
+        right.set_parent(self);
         unsafe {
-            let item = internal::alloc::value();
-            item.write(value.read());
-            right.item = item;
-            right.set_parent(self);
             let mut node = internal::alloc::node();
-            let right_ref = &right as *const Node<'c>;
-            node.write(right);
+            node.write(right.clone());
             self.right = node;
-            right_ref.as_ref().unwrap()
+            right
         }
     }
 
@@ -138,6 +125,38 @@ impl<'c> Node<'c> {
         }
     }
 
+    // binary tree "properties"
+    pub fn height(&self) -> usize {
+        let mut height = 0;
+        let mut node: &Node<'c> = self;
+        // step!(format!("node.left={}", color::ptr(node.left)));
+        // step!(format!("node.height={}", color::fore(height, 220)));
+        // step!(format!("node = {:#?}", node));
+        while !node.left.is_null() {
+            height += 1;
+            // step!(format!("node.left={}", color::ptr(node.left)));
+            // step!(format!("node.height={}", color::fore(height, 220)));
+            node = unsafe { &*node.left };
+            // step!(format!("node = {:#?}", node));
+        }
+        height
+    }
+
+    pub fn depth(&self) -> usize {
+        let mut depth = 0;
+        let mut node: &Node<'c> = self;
+        while !node.parent.is_null() {
+            depth += 1;
+            node = unsafe { node.parent.as_ref().unwrap() };
+        }
+        depth
+    }
+
+    pub fn leaf(&self) -> bool {
+        self.left.is_null() && self.right.is_null()
+    }
+
+    // private methods
     fn set_parent(&mut self, parent: *const Node<'c>) {
         if !self.parent.is_null() {}
         self.parent = parent;
@@ -241,3 +260,23 @@ impl std::fmt::Debug for Node<'_> {
 //     }
 // }
 //
+
+// pub fn set_left(&mut self, mut node: Node<'c>) -> Node<'c> {
+//     // let mut node = &mut node;
+//     // let ptr = node as *const Node<'c>;
+//     let mut left = &mut node;
+//     // let mut left = Node::nil();
+//     let value = left.value() as *const Value<'c>;
+//     unsafe {
+//         let item = internal::alloc::value();
+//         item.write(value.read());
+//         left.item = item;
+//         left.set_parent(self);
+//         let mut node = internal::alloc::node();
+//         let left_ref = left as *const Node<'c>;
+//         node.write(left_ref.read());
+//         self.left = node;
+//         left_ref.cast_mut().as_mut().unwrap()
+//     }
+//     .clone()
+// }
