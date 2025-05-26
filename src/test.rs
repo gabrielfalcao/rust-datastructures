@@ -31,8 +31,6 @@ macro_rules! step {
         let text = $text.to_string();
         eprintln!(
             "{}{}",
-            // "\n{}\n{}\n{}\n",
-            // crate::color::reset(crate::color::bg(" ".repeat(80), fg)),
             crate::color::ansi(
                 format!(
                     "{}:{}",
@@ -44,7 +42,6 @@ macro_rules! step {
             ),
             if text.is_empty() { String::new() } else { format!(" {}", text) }
 
-            // crate::color::reset(crate::color::bg(" ".repeat(80), fg)),
         );
     }};
     () => {{
@@ -104,100 +101,3 @@ macro_rules! function_name {
         name
     }};
 }
-
-// #[macro_export]
-// macro_rules! dbg {
-//     ($( $arg:expr ),* ) => {{
-//         let obj = format!("{}", [$(
-//             format!("{}", format!("{:#?}", $arg)),
-//         )*].iter().map($crate::color::reset).collect::<Vec<String>>().join("\n"));
-//         eprintln!("{}", $crate::color::reset([$crate::location!(begin), obj.clone(), $crate::location!(end)].join("\n")));
-//         obj
-//     }};
-// }
-// #[macro_export]
-// macro_rules! location {
-//     () => {{
-//         let location = format!(
-//             "{}{}{}:{}",
-//             $crate::color::fg($crate::function_name!(), 28),
-//             $crate::color::fg(" @ ", 220),
-//             $crate::filename!(),
-//             $crate::color::fg(line!().to_string(), 49)
-//         );
-//         location
-//     }};
-//     (begin) => {
-//         $crate::tag!($crate::color::fg(
-//             format!("in function {}", $crate::location!()),
-//             178
-//         ))
-//     };
-//     (end) => {
-//         $crate::tag!(
-//             close,
-//             $crate::color::fg(format!("from function {}", $crate::location!()), 178)
-//         )
-//     };
-//     (unexpected) => {
-//         $crate::color::fg(
-//             format!("<unexpected branch in function {}>", $crate::location!()),
-//             160,
-//         )
-//     };
-// }
-// #[macro_export]
-// macro_rules! filename {
-//     () => {
-//         $crate::filename!(237, 49)
-//     };
-//     ($folder_color:literal, $file_color:literal) => {{
-//         let mut parts = file!()
-//             .split(std::path::MAIN_SEPARATOR_STR)
-//             .map(String::from)
-//             .collect::<Vec<String>>();
-//         let (folder, filename) = if parts.len() > 1 {
-//             let last = $crate::color::fg(parts.remove(parts.len() - 1), $file_color);
-//             let mut parts = parts
-//                 .iter()
-//                 .map(|part| $crate::color::fg(part, $folder_color))
-//                 .collect::<Vec<String>>();
-//             (parts, last)
-//         } else {
-//             (
-//                 Vec::<String>::new(),
-//                 $crate::color::fg(parts[0].to_string(), $file_color)
-//             )
-//         };
-//         if folder.len() > 1 {
-//             format!("{}{}{}", filename, $crate::color::fg(" in ", 7), folder.join(std::path::MAIN_SEPARATOR_STR))
-//         } else {
-//             filename
-//         }
-//     }};
-// }
-// #[macro_export]
-// macro_rules! tag {
-//     ($arg:expr) => {{
-//         $crate::tag!($arg, 7)
-//     }};
-//     (close, $arg:expr) => {{
-//         $crate::tag!(close, $arg, 7)
-//     }};
-//     ($arg:expr, $color:literal) => {{
-//         format!(
-//             "{}{}{}",
-//             $crate::color::fg("<", $color),
-//             $arg,
-//             $crate::color::fg(">", $color),
-//         )
-//     }};
-//     (close, $arg:expr, $color:literal) => {{
-//         format!(
-//             "{}{}{}",
-//             $crate::color::fg("</", $color),
-//             $arg,
-//             $crate::color::fg(">", $color),
-//         )
-//     }};
-// }

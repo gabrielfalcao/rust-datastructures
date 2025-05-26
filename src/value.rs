@@ -26,57 +26,9 @@ impl<'c> Value<'_> {
         }
     }
 }
-// impl<'c> PartialEq<&Value<'c>> for Value<'c> {
-//     fn eq(&self, other: &&Value<'c>) -> bool {
-//         match *other {
-//             Value::Nil => *self == &Value::Nil,
-//             #[rustfmt::skip]
-//             Value::Byte(other) => if let Value::Byte(byte) = self {*byte == *other} else {false},
-//             #[rustfmt::skip]
-//             Value::Int(other) => if let Value::Int(int) = self {*int == *other} else {false},
-//             #[rustfmt::skip]
-//             Value::UInt(other) => if let Value::UInt(uint) = self {*uint == *other} else {false},
-//             #[rustfmt::skip]
-//             Value::String(other) => if let Value::String(uint) = self {*uint == *other} else {false},
-//         }
-//     }
-// }
-// impl<'c> Eq<&Value<'c>> for Value<'c> {}
 
 impl<'c> Drop for Value<'c> {
     fn drop(&mut self) {
-        // eprintln!(
-        //     "{}",
-        //     color::reset(color::bgfg(
-        //         format!(
-        //             "{}{} {}{}: {}",
-        //             crate::color::fg("dropping ", 237),
-        //             crate::color::fg("value", 136),
-        //             color::bgfg(format!(" @ "), 231, 16),
-        //             color::ptr_inv(self),
-        //             color::fore(format!("{:#?}", self), 201),
-        //         ),
-        //         197,
-        //         16,
-        //     ))
-        // );
-        // eprintln!(
-        //     "{}",
-        //     color::reset(color::fg(
-        //         format!(
-        //             "\n{}\n{}{} {}{}: {}{}\n{}",
-        //             crate::color::reset(crate::color::bg(" ".repeat(80), color::wrap(197).into())),
-        //             crate::color::bgfg("DROPPING ", 16, 197),
-        //             crate::color::fg("VALUE", 16),
-        //             color::bgfg(format!(" @ "), 16, 231),
-        //             color::ptr_inv(self),
-        //             color::fore(self.to_string(), 201),
-        //             crate::color::reset(crate::color::bg(" ".repeat(39), color::wrap(197).into())),
-        //             crate::color::reset(crate::color::bg(" ".repeat(80), color::wrap(197).into())),
-        //         ),
-        //         237
-        //     ))
-        // )
     }
 }
 
@@ -154,9 +106,3 @@ impl<'c> From<Option<String>> for Value<'c> {
         }
     }
 }
-// impl <'c>AsRef<Value<'c>> for Value<'c>
-// {
-//     fn as_ref(&self) -> &'c Value<'c> {
-//         &self.clone()
-//     }
-// }

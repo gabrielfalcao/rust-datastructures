@@ -54,7 +54,6 @@ impl<'c> Cell<'c> {
 
     pub fn add(&mut self, mut new: &mut Cell<'c>) {
         if self.head.is_null() {
-            // let mut cell = std::ptr::from_mut::<Cell<'c>>(new);
             unsafe {
                 if !new.head.is_null() {
                     self.head = internal::alloc::value();
@@ -75,16 +74,9 @@ impl<'c> Cell<'c> {
         } else {
             new.incr_ref();
             self.incr_ref();
-            // crate::step!(format!("\nadding\n->{:#?}\n  to\n    ->{:#?}\n", new, self));
             if self.tail.is_null() {
                 unsafe {
                     let mut new_tail = std::ptr::from_mut::<Cell<'c>>(new);
-                    // eprintln!("\ncopying new_tail cell {}\n", crate::color::ptr(new_tail));
-                    // eprintln!("\nallocating for tail {}\n", crate::color::ptr(self.tail));
-                    // let new_tail = internal::alloc::cell();
-                    // let new_tail = new as *const Cell<'c>;
-                    // new_tail.write(new_tail.read());
-                    // eprintln!("\nnew tail is {}\n", crate::color::ptr(new_tail));
                     self.tail = new_tail;
                 }
             } else {
@@ -93,7 +85,6 @@ impl<'c> Cell<'c> {
                     tail.add(new);
                 }
             }
-            // crate::step!(format!("\nnew tail\n  ->{:#?}\n    -> {:#?}\n", self, new));
         }
     }
 
@@ -275,13 +266,11 @@ impl std::fmt::Debug for Cell<'_> {
                 color::fore("null", 196)
             } else {
                 color::ptr(self.head)
-                // color::fore(format!("{:016x}", self.head.addr()), 37)
             },
             if self.tail.is_null() {
                 color::fore("null", 196)
             } else {
                 color::ptr(self.tail)
-                // color::fore(format!("{:016x}", self.tail.addr()), 48)
             },
         )
     }
