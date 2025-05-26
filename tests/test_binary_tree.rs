@@ -157,15 +157,15 @@ fn test_tree_property_leaf() {
 }
 
 
-// #[test]
-// fn test_tree_operation_subtree_first() {
-//     let mut tree = MitCourseWareTree::initial_state();
-//
-//     assert_equal!(tree.node_a.subtree_first(), &tree.node_f);
-//     assert_equal!(tree.node_b.subtree_first(), &tree.node_f);
-//     assert_equal!(tree.node_d.subtree_first(), &tree.node_f);
-//     assert_equal!(tree.node_f.subtree_first(), &tree.node_f);
-//
-//     assert_equal!(tree.node_e.subtree_first(), &tree.node_a);
-//     assert_equal!(tree.node_c.subtree_first(), &tree.node_c);
-// }
+#[test]
+fn test_tree_operation_subtree_first() {
+    let mut tree = MitCourseWareTree::initial_state();
+
+    assert_equal!(tree.node_a.subtree_first(), &tree.node_f);
+    assert_equal!(tree.node_b.subtree_first(), &tree.node_f);
+    assert_equal!(tree.node_d.subtree_first(), &tree.node_f);
+    assert_equal!(tree.node_f.subtree_first(), &tree.node_f);
+
+    assert_equal!(tree.node_e.subtree_first(), &tree.node_e);
+    assert_equal!(tree.node_c.subtree_first(), &tree.node_c);
+}

@@ -141,19 +141,39 @@ impl<'c> Node<'c> {
         }
         vertices
     }
-
     pub fn depth(&self) -> usize {
-        if self.parent().is_none() {
+        let mut node = self;
+        if self.parent.is_null() {
             return 0;
         }
-        let mut depth = 0;
-        let mut parent = self.parent();
-        while parent.is_some() {
-            depth += 1;
-            parent = parent.unwrap().parent();
+        let mut vertices = 0;
+
+        while !node.parent.is_null() {
+            node = unsafe { node.parent.as_ref().unwrap() };
+            vertices += 1;
         }
-        depth
+        vertices
     }
+    pub fn subtree_first(&self) -> &'c Node<'c> {
+        if self.left.is_null() {
+            let node = self as *const Node<'c>;
+            return unsafe { node.as_ref().unwrap() };
+        }
+
+        let mut subtree_first = self.left;
+
+        loop {
+            unsafe {
+                let node = &*subtree_first;
+                if node.left.is_null() {
+                    break
+                }
+                subtree_first = node.left.as_ref().unwrap()
+            }
+        }
+        unsafe { subtree_first.as_ref().unwrap() }
+    }
+
 
     pub fn leaf(&self) -> bool {
         self.left.is_null() && self.right.is_null()
