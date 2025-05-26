@@ -81,14 +81,18 @@ impl<'c> Node<'c> {
     pub fn set_left(&mut self, left: &mut Node<'c>) {
         assert!(self.left.is_null());
         assert_ne!((left as *const Node<'c>).addr(), (self as *const Node<'c>).addr());
+        // step!(color::fore( format!("setting left of {} to {}", color::node_ptr(self), color::node_ptr(left)), 112 ));
         left.set_parent(self);
         self.refs += 1;
-        unsafe {
-            let mut node = internal::alloc::node();
-            node.write((left as *const Node<'c>).read());
-            assert_eq!(left.parent.addr(), (self as *const Node<'c>).addr());
-            self.left = node;
-        }
+        // unsafe {
+        //     let mut node = internal::alloc::node();
+        //     node.write((left as *const Node<'c>).read());
+        //     assert_eq!(left.parent.addr(), (self as *const Node<'c>).addr());
+        //     self.left = node;
+        // }
+        self.left = self.left.with_addr(left.addr());
+        assert!(self.left_addr() == left.addr());
+        // step!(color::fore(format!("set: left of {}", color::node_ptr(self)), 81));
     }
 
     pub fn left(&self) -> Option<&'c Node<'c>> {
@@ -110,14 +114,18 @@ impl<'c> Node<'c> {
     pub fn set_right(&mut self, right: &mut Node<'c>) {
         assert!(self.right.is_null());
         assert_ne!((right as *const Node<'c>).addr(), (self as *const Node<'c>).addr());
+        // step!(color::fore( format!("setting right of {} to {}", color::node_ptr(self), color::node_ptr(right)), 112 ));
         right.set_parent(self);
         self.refs += 1;
-        unsafe {
-            let mut node = internal::alloc::node();
-            node.write((right as *const Node<'c>).read());
-            assert_eq!(right.parent.addr(), (self as *const Node<'c>).addr());
-            self.right = node;
-        }
+        // unsafe {
+        //     let mut node = internal::alloc::node();
+        //     node.write((right as *const Node<'c>).read());
+        //     assert_eq!(right.parent.addr(), (self as *const Node<'c>).addr());
+        //     self.right = node;
+        // }
+        self.right = self.right.with_addr(right.addr());
+        assert!(self.right_addr() == right.addr());
+        // step!(color::fore(format!("set: right of {}", color::node_ptr(self)), 81));
     }
 
     pub fn right(&self) -> Option<&'c Node<'c>> {
@@ -142,14 +150,14 @@ impl<'c> Node<'c> {
         if self.left.is_null() {
             return 0;
         }
-        dbg!(&node);
-        let mut vertices = 1;
+        // dbg!(&node);
+        let mut vertices = 0;
         // step!(format!("self = {:#?}", self.value().unwrap_or_default()));
 
         while !node.left.is_null() {
             node = unsafe { node.left.as_ref().unwrap() };
             vertices += 1;
-            dbg!(&node, node == self);
+            // dbg!(&node, node == self);
         }
         // step!(format!(
         //     "node[{:#?}] == self[{:#?}]: {}",
@@ -174,29 +182,35 @@ impl<'c> Node<'c> {
         depth
     }
 
-    // #[rustfmt::skip]
-    // pub fn depth(&self) -> usize {
-    //     let mut node = self.clone();
-    //     let mut depth = 0;
-    //     while !node.parent.is_null() {
-    //         dbg!(&node);
-    //         depth += 1;
-    //         node = node.parent().clone();
-    //     }
-    //     depth
-    // }
-
     pub fn leaf(&self) -> bool {
         self.left.is_null() && self.right.is_null()
     }
 
-    // private methods
-    fn set_parent(&mut self, parent: *const Node<'c>) {
+    pub fn addr(&self) -> usize {
+        (self as *const Node<'c>).addr()
+    }
+
+    pub fn left_addr(&self) -> usize {
+        self.left.addr()
+    }
+
+    pub fn right_addr(&self) -> usize {
+        self.right.addr()
+    }
+
+    pub fn parent_addr(&self) -> usize {
+        self.parent.addr()
+    }
+}
+
+/// Node private methods
+impl<'c> Node<'c> {
+    fn set_parent(&mut self, parent: &Node<'c>) {
         assert!(self.parent.is_null());
-        // step!("setting parent of {} to {}", color::ptr_inv(self), color::ptr_inv(parent));
+        // step!(color::fore( format!("setting parent of {} to {}", color::node_ptr(self), color::node_ptr(parent)), 178 ));
         self.parent = self.parent.with_addr(parent.addr());
-        // step!("setting parent of {} to {}", color::ptr_inv(self), color::ptr_inv(parent));
         self.refs += 1;
+        // step!(color::fore(format!("set: parent of {}", color::node_ptr(self)), 81));
     }
 
     fn incr_ref(&mut self) {
@@ -308,43 +322,63 @@ impl std::fmt::Debug for Node<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{}{}[item={}]{}{}(parent:{})[left:{} | right:{}]",
-            crate::color::reset(""),
-            crate::color::fore("Node", 231),
-            if self.item.is_null() {
-                color::fore("null", 196)
-            } else {
-                self.value()
-                    .map(|value| color::fore(format!("{:#?}", value), 220))
-                    .unwrap_or_else(|| format!("empty"))
-            },
-            crate::color::fg("@", 231),
-            crate::color::ptr_inv(self),
-            if self.parent.is_null() {
-                color::fore("null", 196)
-            } else {
-                self.parent_value()
-                    .map(|parent_value| color::fore(format!("{:#?}", parent_value), 220))
-                    .unwrap_or_else(|| format!("empty"))
-            },
-            if self.left.is_null() {
-                color::fore("null", 196)
-            } else {
-                self.left_value()
-                    .map(|left_value| color::fore(format!("{:#?}", left_value), 220))
-                    .unwrap_or_else(|| format!("empty"))
-            },
-            if self.right.is_null() {
-                color::fore("null", 196)
-            } else {
-                self.right_value()
-                    .map(|right_value| color::fore(format!("{:#?}", right_value), 220))
-                    .unwrap_or_else(|| format!("empty"))
-            },
+            "{}",
+            [
+                crate::color::fore("Node", 231),
+                // crate::color::fg("@", 231),
+                // crate::color::ptr_inv(self),
+                if self.item.is_null() {
+                    color::fore("null", 196)
+                } else {
+                    format!(
+                        "[item={}]",
+                        self.value()
+                            .map(|value| color::fore(format!("{:#?}", value), 220))
+                            .unwrap_or_else(|| format!("empty"))
+                    )
+                },
+                if self.parent.is_null() {
+                    String::new()
+                } else {
+                    format!(
+                        "(parent:{})",
+                        if self.parent.is_null() {
+                            color::fore("null", 196)
+                        } else {
+                            self.parent_value()
+                                .map(|parent_value| {
+                                    color::fore(format!("{:#?}", parent_value), 220)
+                                })
+                                .unwrap_or_else(|| format!("empty"))
+                        }
+                    )
+                },
+                if self.left.is_null() && self.right.is_null() {
+                    String::new()
+                } else {
+                    format!(
+                        "[left:{} | right:{}]",
+                        if self.left.is_null() {
+                            color::fore("null", 196)
+                        } else {
+                            self.left_value()
+                                .map(|left_value| color::fore(format!("{:#?}", left_value), 220))
+                                .unwrap_or_else(|| format!("empty"))
+                        },
+                        if self.right.is_null() {
+                            color::fore("null", 196)
+                        } else {
+                            self.right_value()
+                                .map(|right_value| color::fore(format!("{:#?}", right_value), 220))
+                                .unwrap_or_else(|| format!("empty"))
+                        }
+                    )
+                }
+            ]
+            .join("")
         )
     }
 }
-
 impl<'c> Drop for Node<'c> {
     fn drop(&mut self) {
         // #[rustfmt::skip]//#[cfg(feature="debug")]
@@ -364,3 +398,5 @@ impl<'c> Drop for Node<'c> {
         }
     }
 }
+
+// aW1wbCBzdGQ6OmZtdDo6RGVidWcgZm9yIE5vZGU8J18+IHsKICAgIGZuIGZtdCgmc2VsZiwgZjogJm11dCBzdGQ6OmZtdDo6Rm9ybWF0dGVyKSAtPiBzdGQ6OmZtdDo6UmVzdWx0IHsKICAgICAgICB3cml0ZSEoCiAgICAgICAgICAgIGYsCiAgICAgICAgICAgICJ7fXt9W2l0ZW09e31de317fShwYXJlbnQ6e30pW2xlZnQ6e30gfCByaWdodDp7fV0iLAogICAgICAgICAgICBjcmF0ZTo6Y29sb3I6OnJlc2V0KCIiKSwKICAgICAgICAgICAgY3JhdGU6OmNvbG9yOjpmb3JlKCJOb2RlIiwgMjMxKSwKICAgICAgICAgICAgaWYgc2VsZi5pdGVtLmlzX251bGwoKSB7CiAgICAgICAgICAgICAgICBjb2xvcjo6Zm9yZSgibnVsbCIsIDE5NikKICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgIHNlbGYudmFsdWUoKQogICAgICAgICAgICAgICAgICAgIC5tYXAofHZhbHVlfCBjb2xvcjo6Zm9yZShmb3JtYXQhKCJ7OiM/fSIsIHZhbHVlKSwgMjIwKSkKICAgICAgICAgICAgICAgICAgICAudW53cmFwX29yX2Vsc2UofHwgZm9ybWF0ISgiZW1wdHkiKSkKICAgICAgICAgICAgfSwKICAgICAgICAgICAgY3JhdGU6OmNvbG9yOjpmZygiQCIsIDIzMSksCiAgICAgICAgICAgIGNyYXRlOjpjb2xvcjo6cHRyX2ludihzZWxmKSwKICAgICAgICAgICAgaWYgc2VsZi5wYXJlbnQuaXNfbnVsbCgpIHsKICAgICAgICAgICAgICAgIGNvbG9yOjpmb3JlKCJudWxsIiwgMTk2KQogICAgICAgICAgICB9IGVsc2UgewogICAgICAgICAgICAgICAgc2VsZi5wYXJlbnRfdmFsdWUoKQogICAgICAgICAgICAgICAgICAgIC5tYXAofHBhcmVudF92YWx1ZXwgY29sb3I6OmZvcmUoZm9ybWF0ISgiezojP30iLCBwYXJlbnRfdmFsdWUpLCAyMjApKQogICAgICAgICAgICAgICAgICAgIC51bndyYXBfb3JfZWxzZSh8fCBmb3JtYXQhKCJlbXB0eSIpKQogICAgICAgICAgICB9LAogICAgICAgICAgICBpZiBzZWxmLmxlZnQuaXNfbnVsbCgpIHsKICAgICAgICAgICAgICAgIGNvbG9yOjpmb3JlKCJudWxsIiwgMTk2KQogICAgICAgICAgICB9IGVsc2UgewogICAgICAgICAgICAgICAgc2VsZi5sZWZ0X3ZhbHVlKCkKICAgICAgICAgICAgICAgICAgICAubWFwKHxsZWZ0X3ZhbHVlfCBjb2xvcjo6Zm9yZShmb3JtYXQhKCJ7OiM/fSIsIGxlZnRfdmFsdWUpLCAyMjApKQogICAgICAgICAgICAgICAgICAgIC51bndyYXBfb3JfZWxzZSh8fCBmb3JtYXQhKCJlbXB0eSIpKQogICAgICAgICAgICB9LAogICAgICAgICAgICBpZiBzZWxmLnJpZ2h0LmlzX251bGwoKSB7CiAgICAgICAgICAgICAgICBjb2xvcjo6Zm9yZSgibnVsbCIsIDE5NikKICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgIHNlbGYucmlnaHRfdmFsdWUoKQogICAgICAgICAgICAgICAgICAgIC5tYXAofHJpZ2h0X3ZhbHVlfCBjb2xvcjo6Zm9yZShmb3JtYXQhKCJ7OiM/fSIsIHJpZ2h0X3ZhbHVlKSwgMjIwKSkKICAgICAgICAgICAgICAgICAgICAudW53cmFwX29yX2Vsc2UofHwgZm9ybWF0ISgiZW1wdHkiKSkKICAgICAgICAgICAgfSwKICAgICAgICApCiAgICB9Cn0K

@@ -88,3 +88,15 @@ pub fn ptr_inv<T: Sized + Debug>(ptr: *const T) -> String {
     let (nonnull_fg, nonnull_bg) = couple(101);
     ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
 }
+
+pub fn node_ptr<'c>(ptr: *const crate::Node<'c>) -> String {
+    if ptr.is_null() {
+        ptr_inv(ptr)
+    } else {
+        if let Some(node) = unsafe { ptr.as_ref() } {
+            format!("{:#?}", node)
+        } else {
+            format!("{:#?}", ptr)
+        }
+    }
+}
