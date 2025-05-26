@@ -141,6 +141,7 @@ impl<'c> Node<'c> {
         }
         vertices
     }
+
     pub fn depth(&self) -> usize {
         let mut node = self;
         if self.parent.is_null() {
@@ -154,26 +155,6 @@ impl<'c> Node<'c> {
         }
         vertices
     }
-    pub fn subtree_first(&self) -> &'c Node<'c> {
-        if self.left.is_null() {
-            let node = self as *const Node<'c>;
-            return unsafe { node.as_ref().unwrap() };
-        }
-
-        let mut subtree_first = self.left;
-
-        loop {
-            unsafe {
-                let node = &*subtree_first;
-                if node.left.is_null() {
-                    break
-                }
-                subtree_first = node.left.as_ref().unwrap()
-            }
-        }
-        unsafe { subtree_first.as_ref().unwrap() }
-    }
-
 
     pub fn leaf(&self) -> bool {
         self.left.is_null() && self.right.is_null()
@@ -194,14 +175,74 @@ impl<'c> Node<'c> {
     pub fn parent_addr(&self) -> usize {
         self.parent.addr()
     }
+
+    pub fn refs(&self) -> usize {
+        self.refs
+    }
+
+    pub fn subtree_first(&self) -> &'c Node<'c> {
+        if self.left.is_null() {
+            let node = self as *const Node<'c>;
+            return unsafe { node.as_ref().unwrap() };
+        }
+
+        let mut subtree_first = self.left;
+
+        loop {
+            unsafe {
+                let node = &*subtree_first;
+                if node.left.is_null() {
+                    break;
+                }
+                subtree_first = node.left.as_ref().unwrap()
+            }
+        }
+        unsafe { subtree_first.as_ref().unwrap() }
+    }
+
+    pub fn successor(&self) -> &'c Node<'c> {
+        if !self.right.is_null() {
+            return unsafe { self.right.as_ref().unwrap() }.subtree_first();
+        }
+
+        if self.parent.is_null() {
+            let node = self as *const Node<'c>;
+            return unsafe { node.as_ref().unwrap() }.subtree_first();
+        }
+
+        let mut successor = self.parent;
+
+        let successor = loop {
+            unsafe {
+                let node = &*successor;
+                if node.right.is_null() {
+                    break successor;
+                } else if !node.parent.is_null() {
+                    successor = node.parent.as_ref().unwrap()
+                } else {
+                    break successor;
+                }
+            }
+        };
+        unsafe { successor.as_ref().unwrap() }
+    }
+    // ICAgIHB1YiBmbiBzdWNjZXNzb3IoJnNlbGYpIC0+ICYnYyBOb2RlPCdjPiB7CiAgICAgICAgbGV0IG11dCBzdWNjZXNzb3IgPSBzZWxmIGFzICpjb25zdCBOb2RlPCdjPjsKICAgICAgICBsZXQgc3VjY2Vzc29yID0gbG9vcCB7CiAgICAgICAgICAgIHVuc2FmZSB7CiAgICAgICAgICAgICAgICBsZXQgbm9kZSA9ICYqc3VjY2Vzc29yOwoKICAgICAgICAgICAgICAgIGlmICFub2RlLnJpZ2h0LmlzX251bGwoKSAmJiBub2RlLnJpZ2h0ICE9IHNlbGYucmlnaHQgewogICAgICAgICAgICAgICAgICAgIC8vIEEgLT4gQwogICAgICAgICAgICAgICAgICAgIGxldCBub2RlID0gdW5zYWZlIHsgbm9kZS5yaWdodC5hc19yZWYoKS51bndyYXAoKSB9LnN1YnRyZWVfZmlyc3QoKTsKICAgICAgICAgICAgICAgICAgICBicmVhayBub2RlIGFzICpjb25zdCBOb2RlPCdjPjsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGlmIG5vZGUucGFyZW50LmlzX251bGwoKSAmJiBub2RlLnBhcmVudCAhPSBzZWxmLnBhcmVudCB7CiAgICAgICAgICAgICAgICAgICAgLy8gQQogICAgICAgICAgICAgICAgICAgIC8vIGxldCBub2RlID0gdW5zYWZlIHsgbm9kZS5hc19yZWYoKS51bndyYXAoKSB9LnN1YnRyZWVfZmlyc3QoKTsKICAgICAgICAgICAgICAgICAgICBicmVhayBub2RlIGFzICpjb25zdCBOb2RlPCdjPjsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGlmICFub2RlLnBhcmVudC5pc19udWxsKCkgJiYgbm9kZS5wYXJlbnQgIT0gc2VsZi5wYXJlbnQgewogICAgICAgICAgICAgICAgICAgIC8vIEUKICAgICAgICAgICAgICAgICAgICBzdWNjZXNzb3IgPSBub2RlLnBhcmVudDsKICAgICAgICAgICAgICAgICAgICBjb250aW51ZTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGJyZWFrIHN1Y2Nlc3NvcgogICAgICAgICAgICB9CiAgICAgICAgfTsKICAgICAgICB1bnNhZmUgeyBzdWNjZXNzb3IuYXNfcmVmKCkudW53cmFwKCkgfQogICAgfQo=
 }
 
 /// Node private methods
 impl<'c> Node<'c> {
-    fn set_parent(&mut self, parent: &Node<'c>) {
+    fn set_parent(&mut self, mut parent: &mut Node<'c>) {
         assert!(self.parent.is_null());
         self.parent = self.parent.with_addr(parent.addr());
         self.refs += 1;
+        let mut node = parent;
+        node.refs += 1;
+        while !node.parent.is_null() {
+            unsafe {
+                node = &mut *node.parent.cast_mut();
+                node.refs += 1;
+            }
+        }
     }
 
     fn incr_ref(&mut self) {
@@ -366,7 +407,6 @@ impl std::fmt::Debug for Node<'_> {
 }
 impl<'c> Drop for Node<'c> {
     fn drop(&mut self) {
-
         if self.refs > 0 {
             self.refs -= 1;
         } else {

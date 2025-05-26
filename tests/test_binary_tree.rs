@@ -97,6 +97,14 @@ impl<'t> MitCourseWareTree<'t> {
         assert_equal!(node_f.parent().unwrap().parent().unwrap().parent(), Some(&node_a));
         assert_equal!(node_f.parent().unwrap().parent().unwrap().parent().unwrap().parent(), None);
 
+
+        assert_equal!(node_a.refs(), 6);
+        assert_equal!(node_b.refs(), 6);
+        assert_equal!(node_c.refs(), 1);
+        assert_equal!(node_d.refs(), 3);
+        assert_equal!(node_e.refs(), 1);
+        assert_equal!(node_f.refs(), 1);
+
         MitCourseWareTree {
             node_a,
             node_b,
@@ -169,3 +177,17 @@ fn test_tree_operation_subtree_first() {
     assert_equal!(tree.node_e.subtree_first(), &tree.node_e);
     assert_equal!(tree.node_c.subtree_first(), &tree.node_c);
 }
+
+
+// #[test]
+// fn test_tree_operation_successor() {
+//     let mut tree = MitCourseWareTree::initial_state();
+
+//     assert_equal!(tree.node_a.successor(), &tree.node_c);
+//     assert_equal!(tree.node_f.successor(), &tree.node_d);
+//     assert_equal!(tree.node_b.successor(), &tree.node_e);
+//     assert_equal!(tree.node_d.successor(), &tree.node_e);
+
+//     assert_equal!(tree.node_e.successor(), &tree.node_e);
+//     assert_equal!(tree.node_c.successor(), &tree.node_c);
+// }
