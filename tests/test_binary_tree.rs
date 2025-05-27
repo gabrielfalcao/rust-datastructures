@@ -28,6 +28,9 @@ impl<'t> MitCourseWareTree<'t> {
         ///            F                                \\\
         ///                                             \\\
         ///                                             \\\
+        // Scenario: Create nodes and test the equality of its items
+        //
+        // Given that I create disconnected nodes with values A through F
         let mut node_a = Node::new(Value::from("A"));
         let mut node_b = Node::new(Value::from("B"));
         let mut node_c = Node::new(Value::from("C"));
@@ -35,6 +38,8 @@ impl<'t> MitCourseWareTree<'t> {
         let mut node_e = Node::new(Value::from("E"));
         let mut node_f = Node::new(Value::from("F"));
 
+
+        // Then each node has its corresponding value
         assert_equal!(node_a.value(), Some(Value::from("A")));
         assert_equal!(node_b.value(), Some(Value::from("B")));
         assert_equal!(node_c.value(), Some(Value::from("C")));
@@ -42,61 +47,95 @@ impl<'t> MitCourseWareTree<'t> {
         assert_equal!(node_e.value(), Some(Value::from("E")));
         assert_equal!(node_f.value(), Some(Value::from("F")));
 
-        // set D as in left of B
-        node_b.set_left(&mut node_d);
+        /// /////////////////////////////////////////////////////////////////// ///
+        /// Scenario: Connect nodes and check the equality of the items parents ///
+        ///                                                                     ///
+        /// Given that I set D as in left of B                                  ///
+        node_b.set_left(&mut node_d);                                           ///
+        ///                                                                     ///
+        /// And that I set B as in left of A before setting E as right of B     ///
+        /// so as to test that memory references are set correctly*             ///
+        node_a.set_left(&mut node_b);                                           ///
+        ///                                                                     ///
+        /// And that I set C as left of A                                       ///
+        node_a.set_right(&mut node_c);                                          ///
+        ///                                                                     ///
+        /// And that I set E in right of B*                                     ///
+        node_b.set_right(&mut node_e);                                          ///
+        ///                                                                     ///
+        /// And that I set F in left of D                                       ///
+        node_d.set_left(&mut node_f);                                           ///
+        ///                                                                     ///
+        /// Then the parent of node B parent has value "A"                      ///
+        assert_equal!(node_b.parent_value(), node_a.value());                   ///
+        /// And the parent of node C parent has value "A"                       ///
+        assert_equal!(node_c.parent_value(), node_a.value());                   ///
+        /// And the parent of node D parent has value "B"                       ///
+        assert_equal!(node_d.parent_value(), node_b.value());                   ///
+        /// And the parent of node E parent has value "B"                       ///
+        assert_equal!(node_e.parent_value(), node_b.value());                   ///
+        ///                                                                     ///
+        /// And the parent of node F parent has value "D"                       ///
+        assert_equal!(node_f.parent_value(), node_d.value());                   ///
 
-        // set B as in left of A before setting E as right of B
+        /// //////////////////////////////////////////////// ///
+        /// Scenario: Check the equality of parent nodes     ///
+        /// (i.e.: `impl PartialEq for Node')                ///
+        ///                                                  ///
+        /// Given that all nodes have been connected         ///
+        ///                                                  ///
+        /// Then the parent of node B is node A              ///
+        assert_equal!(node_b.parent(), Some(&node_a));       ///
+        /// And the parent of node C is node A               ///
+        assert_equal!(node_c.parent(), Some(&node_a));       ///
+        ///                                                  ///
+        /// And the parent of node D is node B               ///
+        assert_equal!(node_d.parent(), Some(&node_b));       ///
+        /// And the parent of node E is node B               ///
+        assert_equal!(node_e.parent(), Some(&node_b));       ///
+        /// And the parent of node F is node D               ///
+        assert_equal!(node_f.parent(), Some(&node_d));       ///
 
-        // so as to test that memory references are set correctly*
-        node_a.set_left(&mut node_b);
-
-        // set C as left of A
-        node_a.set_right(&mut node_c);
-
-        // set E in right of B*
-        node_b.set_right(&mut node_e);
-
-        node_d.set_left(&mut node_f);
-
-        assert_equal!(node_b.parent_value(), node_a.value());
-        assert_equal!(node_c.parent_value(), node_a.value());
-        assert_equal!(node_d.parent_value(), node_b.value());
-        assert_equal!(node_e.parent_value(), node_b.value());
-        assert_equal!(node_f.parent_value(), node_d.value());
-
-        assert_equal!(node_b.parent(), Some(&node_a));
-        assert_equal!(node_c.parent(), Some(&node_a));
-        assert_equal!(node_d.parent(), Some(&node_b));
-        assert_equal!(node_e.parent(), Some(&node_b));
-        assert_equal!(node_f.parent(), Some(&node_d));
-
-        assert_equal!(node_a.left(), Some(&node_b));
-        assert_equal!(node_a.right(), Some(&node_c));
-        assert_equal!(node_a.parent(), None);
-
-        assert_equal!(node_b.left(), Some(&node_d));
-        assert_equal!(node_b.right(), Some(&node_e));
-        assert_equal!(node_b.parent(), Some(&node_a));
-        assert_equal!(node_b.parent().unwrap().parent(), None);
-
-        assert_equal!(node_c.left(), None);
-        assert_equal!(node_c.right(), None);
-        assert_equal!(node_c.parent(), Some(&node_a));
-        assert_equal!(node_c.parent().unwrap().parent(), None);
-
-        assert_equal!(node_d.left(), Some(&node_f));
-        assert_equal!(node_d.right(), None);
-        assert_equal!(node_d.parent(), Some(&node_b));
-        assert_equal!(node_d.parent().unwrap().parent(), Some(&node_a));
-        assert_equal!(node_d.parent().unwrap().parent().unwrap().parent(), None);
-
-        assert_equal!(node_f.left(), None);
-        assert_equal!(node_f.right(), None);
-        assert_equal!(node_f.parent(), Some(&node_d));
-        assert_equal!(node_f.parent().unwrap().parent(), Some(&node_b));
-        assert_equal!(node_f.parent().unwrap().parent().unwrap().parent(), Some(&node_a));
-        assert_equal!(node_f.parent().unwrap().parent().unwrap().parent().unwrap().parent(), None);
-
+        /// ////////////////////////////////////////////////////////                               ///
+        /// Scenario: Check the equality of left and right nodes                                   ///
+        /// (i.e.: `impl PartialEq for Node')                                                      ///
+        ///                                                                                        ///
+        /// Given that all nodes have been connected                                               ///
+        ///                                                                                        ///
+        /// Then the left of node A is node B                                                      ///
+        assert_equal!(node_a.left(), Some(&node_b));                                               ///
+        /// And the right of node A is node C                                                      ///
+        assert_equal!(node_a.right(), Some(&node_c));                                              ///
+        /// And node A is the root node (no parent)                                                ///
+        assert_equal!(node_a.parent(), None);                                                      ///
+        ///                                                                                        ///
+        /// And the left of node B is node D                                                       ///
+        assert_equal!(node_b.left(), Some(&node_d));                                               ///
+        /// And the right of node B is node E                                                      ///
+        assert_equal!(node_b.right(), Some(&node_e));                                              ///
+        /// And the parent of node B is node A                                                     ///
+        assert_equal!(node_b.parent(), Some(&node_a));                                             ///
+        /// And node B has no grand-parent                                                         ///
+        assert_equal!(node_b.parent().unwrap().parent(), None);                                    ///
+        ///                                                                                        ///
+        assert_equal!(node_c.left(), None);                                                        ///
+        assert_equal!(node_c.right(), None);                                                       ///
+        assert_equal!(node_c.parent(), Some(&node_a));                                             ///
+        assert_equal!(node_c.parent().unwrap().parent(), None);                                    ///
+        ///                                                                                        ///
+        assert_equal!(node_d.left(), Some(&node_f));                                               ///
+        assert_equal!(node_d.right(), None);                                                       ///
+        assert_equal!(node_d.parent(), Some(&node_b));                                             ///
+        assert_equal!(node_d.parent().unwrap().parent(), Some(&node_a));                           ///
+        assert_equal!(node_d.parent().unwrap().parent().unwrap().parent(), None);                  ///
+        ///                                                                                        ///
+        assert_equal!(node_f.left(), None);                                                        ///
+        assert_equal!(node_f.right(), None);                                                       ///
+        assert_equal!(node_f.parent(), Some(&node_d));                                             ///
+        assert_equal!(node_f.parent().unwrap().parent(), Some(&node_b));                           ///
+        assert_equal!(node_f.parent().unwrap().parent().unwrap().parent(), Some(&node_a));         ///
+        assert_equal!(node_f.parent().unwrap().parent().unwrap().parent().unwrap().parent(), None);///
+        ///                                                                                        ///
 
         assert_equal!(node_a.refs(), 6);
         assert_equal!(node_b.refs(), 6);
@@ -104,7 +143,6 @@ impl<'t> MitCourseWareTree<'t> {
         assert_equal!(node_d.refs(), 3);
         assert_equal!(node_e.refs(), 1);
         assert_equal!(node_f.refs(), 1);
-
         MitCourseWareTree {
             node_a,
             node_b,
@@ -317,4 +355,25 @@ fn test_tree_operation_predecessor_mut_of_g_as_right_of_e() {
     tree.node_e.set_right(&mut node_g);
 
     assert_equal!(node_g.predecessor_mut(), &mut tree.node_e);
+}
+
+
+#[test]
+fn test_tree_operation_swap_item() {
+    // Given the test tree in its initial state
+    let mut tree = MitCourseWareTree::initial_state();
+
+    // When I swap item of node A with item of node E
+    tree.node_a.swap_item(&mut tree.node_e);
+
+    // Then node A has the value E
+    assert_equal!(tree.node_a.value(), Some(Value::from("E")));
+    // And node E has the value A
+    assert_equal!(tree.node_e.value(), Some(Value::from("A")));
+
+    // And all other nodes remain with their values unmodified
+    assert_equal!(tree.node_b.value(), Some(Value::from("B")));
+    assert_equal!(tree.node_c.value(), Some(Value::from("C")));
+    assert_equal!(tree.node_d.value(), Some(Value::from("D")));
+    assert_equal!(tree.node_f.value(), Some(Value::from("F")));
 }

@@ -336,6 +336,11 @@ impl<'c> Node<'c> {
         node = unsafe { &mut *predecessor };
         node
     }
+    pub fn swap_item(&mut self, other: &mut Node<'c>) {
+        let addr = other.item.addr();
+        other.item = other.item.with_addr(self.item.addr());
+        self.item = self.item.with_addr(addr);
+    }
 }
 
 /// Node private methods
