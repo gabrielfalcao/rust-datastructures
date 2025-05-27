@@ -6,10 +6,80 @@ use std::iter::{Extend, FromIterator, IntoIterator};
 use std::marker::PhantomData;
 use std::mem::{ManuallyDrop, MaybeUninit};
 use std::ops::{Deref, DerefMut, Index, IndexMut};
+use std::pin::Pin;
 use std::ptr::NonNull;
 
 use crate::{Cell, Node, Value};
+pub(crate) struct UniquePointer<'c, T> {
+    ptr: *const T,
+    _marker: PhantomData<&'c T>,
+}
 
+impl<'c, T> UniquePointer<'c, T> {
+    pub fn new(ptr: *const T) -> UniquePointer<'c, T> {
+        UniquePointer {
+            ptr,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn is_null(&self) -> bool {
+        self.ptr.is_null()
+        // Pin::<*const T>::into_inner(self.ptr).is_null()
+    }
+
+    pub fn set(&mut self, ptr: *const T) {
+        self.ptr = ptr;
+        // self.ptr = Pin::new(ptr);
+    }
+
+    pub unsafe fn as_ref(&self) -> Option<&'c T> {
+        unsafe { self.ptr.as_ref() }
+    }
+
+    pub unsafe fn as_mut(&self) -> Option<&'c mut T> {
+        unsafe { self.cast_mut().as_mut() }
+    }
+
+    pub unsafe fn cast_mut(&self) -> *mut T {
+        unsafe { self.ptr.cast_mut() }
+    }
+
+    pub unsafe fn into_inner(&self) -> *const T {
+        self.ptr
+    }
+
+    pub unsafe fn read(&self) -> T {
+        unsafe { self.ptr.read() }
+    }
+
+    pub unsafe fn write(&mut self, value: T) {
+        unsafe {
+            self.cast_mut().write(value);
+        }
+    }
+
+    pub fn with_addr(&self, addr: usize) -> *const T {
+        self.ptr.with_addr(addr)
+    }
+
+    pub fn addr(&self) -> usize {
+        self.ptr.addr()
+    }
+}
+
+impl<'c, T> Deref for UniquePointer<'c, T> {
+    type Target = T;
+
+    fn deref(&self) -> &'c T {
+        unsafe { &*self.ptr }
+    }
+}
+impl<'c, T> DerefMut for UniquePointer<'c, T> {
+    fn deref_mut(&mut self) -> &'c mut T {
+        unsafe { self.as_mut().unwrap() }
+    }
+}
 pub(super) mod null {
     use super::{Cell, Node, Value};
     pub(crate) fn value<'c>() -> *const Value<'c> {

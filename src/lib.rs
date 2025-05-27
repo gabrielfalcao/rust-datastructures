@@ -12,4 +12,5 @@ pub mod node;
 pub use node::Node;
 pub mod color;
 pub(crate) mod internal;
+pub (crate) use internal::UniquePointer;
 pub mod test;

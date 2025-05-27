@@ -9,23 +9,23 @@ use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::pin::Pin;
 use std::ptr::NonNull;
 
-use crate::{color, internal, step, Value};
+use crate::{color, internal, step, UniquePointer, Value};
 
 pub struct Node<'c> {
-    parent: *const Node<'c>,
+    parent: UniquePointer<'c, Node<'c>>,
+    left: UniquePointer<'c, Node<'c>>,
+    right: UniquePointer<'c, Node<'c>>,
     item: *const Value<'c>,
-    left: *const Node<'c>,
-    right: *const Node<'c>,
     refs: usize,
 }
 
 impl<'c> Node<'c> {
     pub fn nil() -> Node<'c> {
         Node {
-            parent: internal::null::node(),
+            parent: UniquePointer::new(internal::null::node()),
+            left: UniquePointer::new(internal::null::node()),
+            right: UniquePointer::new(internal::null::node()),
             item: internal::null::value(),
-            left: internal::null::node(),
-            right: internal::null::node(),
             refs: 0,
         }
     }
@@ -83,7 +83,7 @@ impl<'c> Node<'c> {
         assert_ne!((left as *const Node<'c>).addr(), (self as *const Node<'c>).addr());
         left.set_parent(self);
         self.refs += 1;
-        self.left = self.left.with_addr(left.addr());
+        self.left.set(self.left.with_addr(left.addr()));
         assert!(self.left_addr() == left.addr());
     }
 
@@ -108,7 +108,7 @@ impl<'c> Node<'c> {
         assert_ne!((right as *const Node<'c>).addr(), (self as *const Node<'c>).addr());
         right.set_parent(self);
         self.refs += 1;
-        self.right = self.right.with_addr(right.addr());
+        self.right.set(self.right.with_addr(right.addr()));
         assert!(self.right_addr() == right.addr());
     }
 
@@ -186,7 +186,7 @@ impl<'c> Node<'c> {
             return unsafe { node.as_ref().unwrap() };
         }
 
-        let mut subtree_first = self.left;
+        let mut subtree_first = unsafe { self.left.into_inner() };
 
         loop {
             unsafe {
@@ -208,7 +208,7 @@ impl<'c> Node<'c> {
         if let Some(parent) = self.parent() {
             /// node.parent is root but node.right is null, so successor is node.subtree_first()
             if parent.parent.is_null() {
-                return self.subtree_first()
+                return self.subtree_first();
             }
         }
         let mut successor = self as *const Node<'c>;
@@ -218,8 +218,10 @@ impl<'c> Node<'c> {
                 break;
             }
             if !node.parent.is_null() {
-                successor = node.parent as *const Node<'c>;
-                node = unsafe { &*successor };
+                unsafe {
+                    successor = node.parent.into_inner();
+                    node = &*successor
+                };
             } else {
                 break;
             };
@@ -233,7 +235,7 @@ impl<'c> Node<'c> {
             return unsafe { node.as_mut().unwrap() };
         }
 
-        let mut subtree_first = self.left as *mut Node<'c>;
+        let mut subtree_first = unsafe { self.left.cast_mut() };
 
         loop {
             unsafe {
@@ -241,7 +243,7 @@ impl<'c> Node<'c> {
                 if node.left.is_null() {
                     break;
                 }
-                subtree_first = (node.left as *mut Node<'c>).as_mut().unwrap()
+                subtree_first = (node.left.cast_mut()).as_mut().unwrap()
             }
         }
         unsafe { subtree_first.as_mut().unwrap() }
@@ -249,13 +251,13 @@ impl<'c> Node<'c> {
 
     pub fn successor_mut(&mut self) -> &'c mut Node<'c> {
         if !self.right.is_null() {
-            return unsafe { (self.right as *mut Node<'c>).as_mut().unwrap() }.subtree_first_mut();
+            return unsafe { (self.right.cast_mut()).as_mut().unwrap() }.subtree_first_mut();
         }
 
         if let Some(parent) = self.parent() {
             /// node.parent is root but node.right is null, so successor is node.subtree_first_mut()
             if parent.parent.is_null() {
-                return self.subtree_first_mut()
+                return self.subtree_first_mut();
             }
         }
         let mut successor = self as *mut Node<'c>;
@@ -265,8 +267,10 @@ impl<'c> Node<'c> {
                 break;
             }
             if !node.parent.is_null() {
-                successor = node.parent as *mut Node<'c>;
-                node = unsafe { &mut *successor };
+                unsafe {
+                    successor = node.parent.cast_mut();
+                    node = &mut *successor
+                };
             } else {
                 break;
             };
@@ -285,11 +289,11 @@ impl<'c> Node<'c> {
     }
 }
 
-/// Node private methods
+///Node private methods
 impl<'c> Node<'c> {
     fn set_parent(&mut self, mut parent: &mut Node<'c>) {
         assert!(self.parent.is_null());
-        self.parent = self.parent.with_addr(parent.addr());
+        self.parent.set(self.parent.with_addr(parent.addr()));
         self.refs += 1;
         let mut node = parent;
         node.refs += 1;
@@ -305,7 +309,7 @@ impl<'c> Node<'c> {
         self.refs += 1;
         if !self.parent.is_null() {
             unsafe {
-                let mut parent = self.parent as *mut Node<'c>;
+                let mut parent = self.parent.cast_mut();
                 if let Some(mut parent) = parent.as_mut() {
                     parent.refs += 1;
                 }
@@ -376,17 +380,17 @@ impl<'c> Clone for Node<'c> {
             if !self.parent.is_null() {
                 let parent = internal::alloc::node();
                 parent.write(self.parent.read());
-                node.parent = parent;
+                node.parent.set(parent);
             }
             if !self.left.is_null() {
                 let left = internal::alloc::node();
                 left.write(self.left.read());
-                node.left = left;
+                node.left.set(left);
             }
             if !self.right.is_null() {
                 let right = internal::alloc::node();
                 right.write(self.right.read());
-                node.right = right;
+                node.right.set(right);
             }
         }
         node
@@ -484,7 +488,7 @@ impl<'c> Drop for Node<'c> {
                     false
                 };
                 if dealloc {
-                    internal::dealloc::node(self.parent);
+                    internal::dealloc::node(self.parent.into_inner());
                 }
             }
             unsafe {
@@ -497,7 +501,7 @@ impl<'c> Drop for Node<'c> {
                     false
                 };
                 if dealloc {
-                    internal::dealloc::node(self.left);
+                    internal::dealloc::node(self.left.into_inner());
                 }
             }
             unsafe {
@@ -510,7 +514,7 @@ impl<'c> Drop for Node<'c> {
                     false
                 };
                 if dealloc {
-                    internal::dealloc::node(self.right);
+                    internal::dealloc::node(self.right.into_inner());
                 }
             }
 
