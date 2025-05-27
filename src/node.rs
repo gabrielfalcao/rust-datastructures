@@ -230,7 +230,7 @@ impl<'c> Node<'c> {
     pub fn subtree_first_mut(&mut self) -> &'c mut Node<'c> {
         if self.left.is_null() {
             let node = self as *mut Node<'c>;
-            return unsafe { node.as_mut().unwrap() };
+            return unsafe { &mut *node }
         }
 
         let mut subtree_first = self.left as *mut Node<'c>;
@@ -241,10 +241,10 @@ impl<'c> Node<'c> {
                 if node.left.is_null() {
                     break;
                 }
-                subtree_first = (node.left as *mut Node<'c>).as_mut().unwrap()
+                subtree_first = &mut *(node.left as *mut Node<'c>)
             }
         }
-        unsafe { subtree_first.as_mut().unwrap() }
+        unsafe { &mut *subtree_first }
     }
 
     pub fn successor_mut(&mut self) -> &'c mut Node<'c> {
@@ -259,19 +259,19 @@ impl<'c> Node<'c> {
             }
         }
         let mut successor = self as *mut Node<'c>;
-        let mut node = unsafe { &mut *successor };
+        let mut node = unsafe { successor.as_mut().unwrap() };
         loop {
             if node.left() == Some(self) {
                 break;
             }
             if !node.parent.is_null() {
                 successor = node.parent as *mut Node<'c>;
-                node = unsafe { &mut *successor };
+                node = unsafe { successor.as_mut().unwrap() };
             } else {
                 break;
             };
         }
-        unsafe { &mut *successor }
+        unsafe { successor.as_mut().unwrap() }
     }
 
     pub fn subtree_insert_after(&mut self, new: &mut Node<'c>) {
@@ -367,6 +367,10 @@ impl<'c> Clone for Node<'c> {
     fn clone(&self) -> Node<'c> {
         let mut node = Node::nil();
         node.refs = self.refs;
+        // node.item = self.item;
+        // node.parent = self.parent;
+        // node.left = self.left;
+        // node.right = self.right;
         unsafe {
             if !self.item.is_null() {
                 let item = internal::alloc::value();
@@ -398,7 +402,8 @@ impl std::fmt::Debug for Node<'_> {
             f,
             "{}",
             [
-                crate::color::fore("Node", 231),
+                crate::color::fore("Node@", 231),
+                format!("{:016x}", self.addr()),
                 // crate::color::ptr_inv(self),
                 if self.item.is_null() {
                     color::fore("null", 196)
