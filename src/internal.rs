@@ -11,60 +11,73 @@ use std::ptr::NonNull;
 
 use crate::{Cell, Node, Value};
 pub(crate) struct UniquePointer<'c, T> {
-    ptr: *const T,
+    ptr: Pin<ManuallyDrop<*mut T>>,
     _marker: PhantomData<&'c T>,
 }
 
 impl<'c, T> UniquePointer<'c, T> {
-    pub fn new(ptr: *const T) -> UniquePointer<'c, T> {
+    pub fn new(mut ptr: *mut T) -> UniquePointer<'c, T> {
+        // let mut mut_ptr: &'c mut *mut T = unsafe {&mut *&mut ptr};
         UniquePointer {
-            ptr,
+            ptr: Pin::new(ManuallyDrop::new(ptr)),
             _marker: PhantomData,
         }
     }
 
     pub fn is_null(&self) -> bool {
-        self.ptr.is_null()
-        // Pin::<*const T>::into_inner(self.ptr).is_null()
+        // self.ptr.is_null()
+        unsafe { self.into_inner() }.is_null()
     }
 
-    pub fn set(&mut self, ptr: *const T) {
-        self.ptr = ptr;
-        // self.ptr = Pin::new(ptr);
+    pub fn set(&mut self, mut ptr: *mut T) {
+        let mut ptr = ManuallyDrop::new(ptr);
+        // // self.ptr = ptr;
+        // let mut mut_ptr: &'c mut *mut T = unsafe {&mut *&mut ptr};
+        self.ptr = Pin::new(ptr);
     }
 
     pub unsafe fn as_ref(&self) -> Option<&'c T> {
-        unsafe { self.ptr.as_ref() }
+        unsafe { self.cast_const().as_ref() }
     }
 
     pub unsafe fn as_mut(&self) -> Option<&'c mut T> {
         unsafe { self.cast_mut().as_mut() }
     }
 
-    pub unsafe fn cast_mut(&self) -> *mut T {
-        unsafe { self.ptr.cast_mut() }
+    pub unsafe fn cast_const(&self) -> *const T {
+        unsafe { self.into_inner().cast_const() }
     }
 
-    pub unsafe fn into_inner(&self) -> *const T {
-        self.ptr
+    pub unsafe fn cast_mut(&self) -> *mut T {
+        unsafe { self.into_inner() }
+    }
+
+    pub unsafe fn into_inner(&self) -> *mut T {
+        unsafe {
+            // let mut mut_ptr: &'c mut *mut T = &mut self.ptr;
+            // Pin::<&'c mut *mut T>::into_inner(mut_ptr)
+            // let mut ptr = ManuallyDrop::new(&mut ptr);
+            // let mut mut_ptr: &'c mut *mut T = ManuallyDrop::<&'c mut *mut T>::into_inner(ptr);
+            ManuallyDrop::into_inner(Pin::into_inner(self.ptr))
+        }
     }
 
     pub unsafe fn read(&self) -> T {
-        unsafe { self.ptr.read() }
+        unsafe { self.into_inner().read() }
     }
 
-    pub unsafe fn write(&mut self, value: T) {
+    pub unsafe fn write(&self, value: T) {
         unsafe {
             self.cast_mut().write(value);
         }
     }
 
-    pub fn with_addr(&self, addr: usize) -> *const T {
-        self.ptr.with_addr(addr)
+    pub fn with_addr(&self, addr: usize) -> *mut T {
+        unsafe { self.into_inner().with_addr(addr) }
     }
 
     pub fn addr(&self) -> usize {
-        self.ptr.addr()
+        unsafe { self.into_inner().addr() }
     }
 }
 
@@ -72,7 +85,7 @@ impl<'c, T> Deref for UniquePointer<'c, T> {
     type Target = T;
 
     fn deref(&self) -> &'c T {
-        unsafe { &*self.ptr }
+        unsafe { self.as_ref().unwrap() }
     }
 }
 impl<'c, T> DerefMut for UniquePointer<'c, T> {
@@ -82,14 +95,14 @@ impl<'c, T> DerefMut for UniquePointer<'c, T> {
 }
 pub(super) mod null {
     use super::{Cell, Node, Value};
-    pub(crate) fn value<'c>() -> *const Value<'c> {
-        std::ptr::null::<Value<'c>>()
+    pub(crate) fn value<'c>() -> *mut Value<'c> {
+        std::ptr::null_mut::<Value<'c>>()
     }
-    pub(crate) fn cell<'c>() -> *const Cell<'c> {
-        std::ptr::null::<Cell<'c>>()
+    pub(crate) fn cell<'c>() -> *mut Cell<'c> {
+        std::ptr::null_mut::<Cell<'c>>()
     }
-    pub(crate) fn node<'c>() -> *const Node<'c> {
-        std::ptr::null::<Node<'c>>()
+    pub(crate) fn node<'c>() -> *mut Node<'c> {
+        std::ptr::null_mut::<Node<'c>>()
     }
 }
 pub(super) mod alloc {

@@ -83,7 +83,7 @@ impl<'c> Node<'c> {
         assert_ne!((left as *const Node<'c>).addr(), (self as *const Node<'c>).addr());
         left.set_parent(self);
         self.refs += 1;
-        self.left.set(self.left.with_addr(left.addr()));
+        self.left.set(left as *mut Node<'c>);
         assert!(self.left_addr() == left.addr());
     }
 
@@ -108,7 +108,8 @@ impl<'c> Node<'c> {
         assert_ne!((right as *const Node<'c>).addr(), (self as *const Node<'c>).addr());
         right.set_parent(self);
         self.refs += 1;
-        self.right.set(self.right.with_addr(right.addr()));
+        self.right.set(right as *mut Node<'c>);
+
         assert!(self.right_addr() == right.addr());
     }
 
@@ -194,7 +195,7 @@ impl<'c> Node<'c> {
                 if node.left.is_null() {
                     break;
                 }
-                subtree_first = node.left.as_ref().unwrap()
+                subtree_first = node.left.cast_mut();
             }
         }
         unsafe { subtree_first.as_ref().unwrap() }
@@ -293,7 +294,7 @@ impl<'c> Node<'c> {
 impl<'c> Node<'c> {
     fn set_parent(&mut self, mut parent: &mut Node<'c>) {
         assert!(self.parent.is_null());
-        self.parent.set(self.parent.with_addr(parent.addr()));
+        self.parent.set(parent as *mut Node<'c>);
         self.refs += 1;
         let mut node = parent;
         node.refs += 1;
@@ -378,19 +379,20 @@ impl<'c> Clone for Node<'c> {
                 node.item = item;
             }
             if !self.parent.is_null() {
-                let parent = internal::alloc::node();
+                let parent = UniquePointer::new(internal::alloc::node());
                 parent.write(self.parent.read());
-                node.parent.set(parent);
+                node.parent = parent;
             }
             if !self.left.is_null() {
-                let left = internal::alloc::node();
+                let left = UniquePointer::new(internal::alloc::node());
+
                 left.write(self.left.read());
-                node.left.set(left);
+                node.left = left;
             }
             if !self.right.is_null() {
-                let right = internal::alloc::node();
+                let right = UniquePointer::new(internal::alloc::node());
                 right.write(self.right.read());
-                node.right.set(right);
+                node.right = right;
             }
         }
         node

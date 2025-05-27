@@ -263,5 +263,5 @@ fn test_tree_operation_subtree_insert_after_node_when_node_right_is_non_null() {
     tree.node_a.subtree_insert_after(&mut node_g);
 
     assert_equal!(node_g.parent(), tree.node_a.right());
-    // TODO: assert_equal!(node_g.parent(), Some(&tree.node_c));
+    assert_equal!(node_g.parent(), Some(&tree.node_c));
 }
