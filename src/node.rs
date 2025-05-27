@@ -226,6 +226,56 @@ impl<'c> Node<'c> {
         }
         unsafe { &*successor }
     }
+
+    pub fn subtree_first_mut(&mut self) -> &'c mut Node<'c> {
+        if self.left.is_null() {
+            let node = self as *mut Node<'c>;
+            return unsafe { node.as_mut().unwrap() };
+        }
+
+        let mut subtree_first = self.left as *mut Node<'c>;
+
+        loop {
+            unsafe {
+                let node = &mut *subtree_first;
+                if node.left.is_null() {
+                    break;
+                }
+                subtree_first = (node.left as *mut Node<'c>).as_mut().unwrap()
+            }
+        }
+        unsafe { subtree_first.as_mut().unwrap() }
+    }
+
+    pub fn successor_mut(&mut self) -> &'c mut Node<'c> {
+        if !self.right.is_null() {
+            return unsafe { (self.right as *mut Node<'c>).as_mut().unwrap() }.subtree_first_mut();
+        }
+
+        if let Some(parent) = self.parent() {
+            /// node.parent is root but node.right is null, so successor is node.subtree_first_mut()
+            if parent.parent.is_null() {
+                return self.subtree_first_mut()
+            }
+        }
+        let mut successor = self as *mut Node<'c>;
+        let mut node = unsafe { &mut *successor };
+        loop {
+            if node.left() == Some(self) {
+                break;
+            }
+            if !node.parent.is_null() {
+                successor = node.parent as *mut Node<'c>;
+                node = unsafe { &mut *successor };
+            } else {
+                break;
+            };
+        }
+        unsafe { &mut *successor }
+    }
+
+
+
 }
 
 /// Node private methods
