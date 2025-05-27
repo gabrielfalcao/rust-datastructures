@@ -285,51 +285,55 @@ impl<'c> Node<'c> {
     }
 
     pub fn predecessor(&self) -> &'c Node<'c> {
-        // let mut node = self;
         let mut predecessor = self as *const Node<'c>;
-        // let mut predecessor = if !node.left.is_null() {
-        //     node.left as *const Node<'c>
-        // } else if !node.parent.is_null() {
-        //     node.parent as *const Node<'c>
-        // } else {
-        //     self as *const Node<'c>
-        // };
         let mut node = unsafe { &*predecessor };
-        // step!("node is {:#?}", &node.value().unwrap());
 
         loop {
             if !node.left.is_null() {
                 predecessor = node.left as *const Node<'c>;
                 node = unsafe { &*predecessor };
-                //step!("node.left not null. node is {:#?}", &node.value().unwrap());
                 if !node.right.is_null() {
                     predecessor = node.right as *const Node<'c>;
                     node = unsafe { &*predecessor };
-                    //step!("node.left.right not null. node is {:#?}", &node.value().unwrap());
                 }
                 break;
             } else if !node.parent.is_null() {
                 predecessor = node.parent as *const Node<'c>;
                 node = unsafe { &*predecessor };
-                //step!("node.parent not null. node is {:#?}", &node.value().unwrap());
                 if let Some(right) = node.right() {
                     if right == self {
-                        //step!("node.parent.right not null. node is {:#?}", &node.value().unwrap());
                         break;
                     }
                 }
-            } // else if !node.right.is_null() {
-            //     predecessor = node.right as *const Node<'c>;
-            //     node = unsafe { &*predecessor };
-            //     step!("node.right not null. node is {:#?}", &node.value().unwrap());
-            //     break;
-            // } else {
-            //     step!("node is {:#?}", &node.value().unwrap());
-            //     break;
-            // }
+            }
         }
         node = unsafe { &*predecessor };
-        // step!("node is {:#?}", &node.value().unwrap());
+        node
+    }
+    pub fn predecessor_mut(&mut self) -> &'c Node<'c> {
+        let mut predecessor = self as *mut Node<'c>;
+        let mut node = unsafe { &mut *predecessor };
+
+        loop {
+            if !node.left.is_null() {
+                predecessor = node.left as *mut Node<'c>;
+                node = unsafe { &mut *predecessor };
+                if !node.right.is_null() {
+                    predecessor = node.right as *mut Node<'c>;
+                    node = unsafe { &mut *predecessor };
+                }
+                break;
+            } else if !node.parent.is_null() {
+                predecessor = node.parent as *mut Node<'c>;
+                node = unsafe { &mut *predecessor };
+                if let Some(right) = node.right() {
+                    if right == self {
+                        break;
+                    }
+                }
+            }
+        }
+        node = unsafe { &mut *predecessor };
         node
     }
 }
