@@ -31,7 +31,7 @@ macro_rules! step {
         let text = $text.to_string();
         eprintln!(
             "{}{}",
-            crate::color::ansi(
+            crate::color::bgfg(
                 format!(
                     "{}:{}",
                     $crate::function_name!(),

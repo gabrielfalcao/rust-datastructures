@@ -208,7 +208,7 @@ impl<'c> Node<'c> {
         if let Some(parent) = self.parent() {
             /// node.parent is root but node.right is null, so successor is node.subtree_first()
             if parent.parent.is_null() {
-                return self.subtree_first()
+                return self.subtree_first();
             }
         }
         let mut successor = self as *const Node<'c>;
@@ -230,7 +230,7 @@ impl<'c> Node<'c> {
     pub fn subtree_first_mut(&mut self) -> &'c mut Node<'c> {
         if self.left.is_null() {
             let node = self as *mut Node<'c>;
-            return unsafe { &mut *node }
+            return unsafe { &mut *node };
         }
 
         let mut subtree_first = self.left as *mut Node<'c>;
@@ -255,7 +255,7 @@ impl<'c> Node<'c> {
         if let Some(parent) = self.parent() {
             /// node.parent is root but node.right is null, so successor is node.subtree_first_mut()
             if parent.parent.is_null() {
-                return self.subtree_first_mut()
+                return self.subtree_first_mut();
             }
         }
         let mut successor = self as *mut Node<'c>;
@@ -282,6 +282,55 @@ impl<'c> Node<'c> {
             successor.set_left(new);
             assert_eq!(new, self.successor());
         }
+    }
+
+    pub fn predecessor(&self) -> &'c Node<'c> {
+        // let mut node = self;
+        let mut predecessor = self as *const Node<'c>;
+        // let mut predecessor = if !node.left.is_null() {
+        //     node.left as *const Node<'c>
+        // } else if !node.parent.is_null() {
+        //     node.parent as *const Node<'c>
+        // } else {
+        //     self as *const Node<'c>
+        // };
+        let mut node = unsafe { &*predecessor };
+        // step!("node is {:#?}", &node.value().unwrap());
+
+        loop {
+            if !node.left.is_null() {
+                predecessor = node.left as *const Node<'c>;
+                node = unsafe { &*predecessor };
+                //step!("node.left not null. node is {:#?}", &node.value().unwrap());
+                if !node.right.is_null() {
+                    predecessor = node.right as *const Node<'c>;
+                    node = unsafe { &*predecessor };
+                    //step!("node.left.right not null. node is {:#?}", &node.value().unwrap());
+                }
+                break;
+            } else if !node.parent.is_null() {
+                predecessor = node.parent as *const Node<'c>;
+                node = unsafe { &*predecessor };
+                //step!("node.parent not null. node is {:#?}", &node.value().unwrap());
+                if let Some(right) = node.right() {
+                    if right == self {
+                        //step!("node.parent.right not null. node is {:#?}", &node.value().unwrap());
+                        break;
+                    }
+                }
+            } // else if !node.right.is_null() {
+            //     predecessor = node.right as *const Node<'c>;
+            //     node = unsafe { &*predecessor };
+            //     step!("node.right not null. node is {:#?}", &node.value().unwrap());
+            //     break;
+            // } else {
+            //     step!("node is {:#?}", &node.value().unwrap());
+            //     break;
+            // }
+        }
+        node = unsafe { &*predecessor };
+        // step!("node is {:#?}", &node.value().unwrap());
+        node
     }
 }
 
