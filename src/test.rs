@@ -53,29 +53,29 @@ macro_rules! step_test {
     ($text:literal) => {{
         $crate::step_test!(format!("{}", $text))
     }};
+    ($text:literal, $( $arg:expr ),* ) => {{
+        $crate::step_test!(format_args!($text, $($arg,)*))
+    }};
     ($text:expr) => {{
         let (bg, fg) = $crate::color::couple(line!() as usize);
         let text = $text.to_string();
+        let full_text =
+            format!("{}:{} {}", $crate::function_name!(), line!(), &text);
+
         eprintln!(
-            "\n{}\n{}\n",
-            crate::color::reset(crate::color::bg(" ".repeat(80), bg.into())),
+            "\n{}\n{} {}",
+            crate::color::bg(" ".repeat(full_text.len()), bg as usize),
             crate::color::ansi(
                 format!(
-                    "{}{}{}",
+                    "{}:{}",
                     $crate::function_name!(),
-                    " ".repeat(80),
-                    if text.is_empty() {
-                        String::new()
-                    } else {
-                        format!(
-                            "\nline {}:\t\t{}{}\n{}",
-                            line!() + 1,
-                            text,
-                            " ".repeat(50),
-                            " ".repeat(80)
-                        )
-                    }
+                    line!(),
                 ),
+                bg.into(),
+                fg.into(),
+            ),
+            crate::color::ansi(
+                if text.is_empty() { String::new() } else { format!("{}", text) },
                 fg.into(),
                 bg.into(),
             ),

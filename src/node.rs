@@ -205,28 +205,27 @@ impl<'c> Node<'c> {
             return unsafe { self.right.as_ref().unwrap() }.subtree_first();
         }
 
-        if self.parent.is_null() {
-            let node = self as *const Node<'c>;
-            return unsafe { node.as_ref().unwrap() }.subtree_first();
-        }
-
-        let mut successor = self.parent;
-
-        let successor = loop {
-            unsafe {
-                let node = &*successor;
-                if node.right.is_null() {
-                    break successor;
-                } else if !node.parent.is_null() {
-                    successor = node.parent.as_ref().unwrap()
-                } else {
-                    break successor;
-                }
+        if let Some(parent) = self.parent() {
+            /// node.parent is root but node.right is null, so successor is node.subtree_first()
+            if parent.parent.is_null() {
+                return self.subtree_first()
             }
-        };
-        unsafe { successor.as_ref().unwrap() }
+        }
+        let mut successor = self as *const Node<'c>;
+        let mut node = unsafe { &*successor };
+        loop {
+            if node.left() == Some(self) {
+                break;
+            }
+            if !node.parent.is_null() {
+                successor = node.parent as *const Node<'c>;
+                node = unsafe { &*successor };
+            } else {
+                break;
+            };
+        }
+        unsafe { &*successor }
     }
-    // ICAgIHB1YiBmbiBzdWNjZXNzb3IoJnNlbGYpIC0+ICYnYyBOb2RlPCdjPiB7CiAgICAgICAgbGV0IG11dCBzdWNjZXNzb3IgPSBzZWxmIGFzICpjb25zdCBOb2RlPCdjPjsKICAgICAgICBsZXQgc3VjY2Vzc29yID0gbG9vcCB7CiAgICAgICAgICAgIHVuc2FmZSB7CiAgICAgICAgICAgICAgICBsZXQgbm9kZSA9ICYqc3VjY2Vzc29yOwoKICAgICAgICAgICAgICAgIGlmICFub2RlLnJpZ2h0LmlzX251bGwoKSAmJiBub2RlLnJpZ2h0ICE9IHNlbGYucmlnaHQgewogICAgICAgICAgICAgICAgICAgIC8vIEEgLT4gQwogICAgICAgICAgICAgICAgICAgIGxldCBub2RlID0gdW5zYWZlIHsgbm9kZS5yaWdodC5hc19yZWYoKS51bndyYXAoKSB9LnN1YnRyZWVfZmlyc3QoKTsKICAgICAgICAgICAgICAgICAgICBicmVhayBub2RlIGFzICpjb25zdCBOb2RlPCdjPjsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGlmIG5vZGUucGFyZW50LmlzX251bGwoKSAmJiBub2RlLnBhcmVudCAhPSBzZWxmLnBhcmVudCB7CiAgICAgICAgICAgICAgICAgICAgLy8gQQogICAgICAgICAgICAgICAgICAgIC8vIGxldCBub2RlID0gdW5zYWZlIHsgbm9kZS5hc19yZWYoKS51bndyYXAoKSB9LnN1YnRyZWVfZmlyc3QoKTsKICAgICAgICAgICAgICAgICAgICBicmVhayBub2RlIGFzICpjb25zdCBOb2RlPCdjPjsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGlmICFub2RlLnBhcmVudC5pc19udWxsKCkgJiYgbm9kZS5wYXJlbnQgIT0gc2VsZi5wYXJlbnQgewogICAgICAgICAgICAgICAgICAgIC8vIEUKICAgICAgICAgICAgICAgICAgICBzdWNjZXNzb3IgPSBub2RlLnBhcmVudDsKICAgICAgICAgICAgICAgICAgICBjb250aW51ZTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGJyZWFrIHN1Y2Nlc3NvcgogICAgICAgICAgICB9CiAgICAgICAgfTsKICAgICAgICB1bnNhZmUgeyBzdWNjZXNzb3IuYXNfcmVmKCkudW53cmFwKCkgfQogICAgfQo=
 }
 
 /// Node private methods
@@ -288,15 +287,6 @@ impl<'c> Node<'c> {
             self.parent_value() == other.parent_value()
         }
     }
-
-    fn refs_eq(&self, other: &Node<'c>) -> bool {
-        if self.refs == other.refs {
-            self.refs == other.refs
-        } else {
-            eprintln!("");
-            dbg!(self.refs) == dbg!(other.refs)
-        }
-    }
 }
 
 impl<'c> PartialEq<Node<'c>> for Node<'c> {
@@ -345,7 +335,6 @@ impl<'c> Clone for Node<'c> {
         node
     }
 }
-
 impl std::fmt::Debug for Node<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
@@ -353,6 +342,7 @@ impl std::fmt::Debug for Node<'_> {
             "{}",
             [
                 crate::color::fore("Node", 231),
+                // crate::color::ptr_inv(self),
                 if self.item.is_null() {
                     color::fore("null", 196)
                 } else {
@@ -390,6 +380,14 @@ impl std::fmt::Debug for Node<'_> {
                             self.left_value()
                                 .map(|left_value| color::fore(format!("{:#?}", left_value), 220))
                                 .unwrap_or_else(|| format!("empty"))
+                            //     self.left_value()
+                            //         .map(|left_value| {
+                            //             color::fore(format!("{:#?}", left_value), 220)
+                            //         })
+                            //         .unwrap_or_else(|| format!("empty")),
+                            //     crate::color::ptr_inv(self.left),
+                            // ]
+                            // .join("@")
                         },
                         if self.right.is_null() {
                             color::fore("null", 196)
@@ -397,6 +395,15 @@ impl std::fmt::Debug for Node<'_> {
                             self.right_value()
                                 .map(|right_value| color::fore(format!("{:#?}", right_value), 220))
                                 .unwrap_or_else(|| format!("empty"))
+                            // [
+                            //     self.right_value()
+                            //         .map(|right_value| {
+                            //             color::fore(format!("{:#?}", right_value), 220)
+                            //         })
+                            //         .unwrap_or_else(|| format!("empty")),
+                            //     crate::color::ptr_inv(self.right),
+                            // ]
+                            // .join("@")
                         }
                     )
                 }
@@ -411,10 +418,49 @@ impl<'c> Drop for Node<'c> {
             self.refs -= 1;
         } else {
             unsafe {
-                internal::dealloc::value(self.item);
-                internal::dealloc::node(self.parent);
-                internal::dealloc::node(self.left);
-                internal::dealloc::node(self.right);
+                let dealloc = if let Some(parent) = self.parent.cast_mut().as_mut() {
+                    if parent.refs > 0 {
+                        parent.refs -= 1;
+                    };
+                    parent.refs == 0
+                } else {
+                    false
+                };
+                if dealloc {
+                    internal::dealloc::node(self.parent);
+                }
+            }
+            unsafe {
+                let dealloc = if let Some(left) = self.left.cast_mut().as_mut() {
+                    if left.refs > 0 {
+                        left.refs -= 1;
+                    };
+                    left.refs == 0
+                } else {
+                    false
+                };
+                if dealloc {
+                    internal::dealloc::node(self.left);
+                }
+            }
+            unsafe {
+                let dealloc = if let Some(right) = self.right.cast_mut().as_mut() {
+                    if right.refs > 0 {
+                        right.refs -= 1;
+                    };
+                    right.refs == 0
+                } else {
+                    false
+                };
+                if dealloc {
+                    internal::dealloc::node(self.right);
+                }
+            }
+
+            if !self.item.is_null() {
+                unsafe {
+                    internal::dealloc::value(self.item);
+                }
             }
         }
     }

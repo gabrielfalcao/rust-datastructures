@@ -179,15 +179,25 @@ fn test_tree_operation_subtree_first() {
 }
 
 
-// #[test]
-// fn test_tree_operation_successor() {
-//     let mut tree = MitCourseWareTree::initial_state();
+#[test]
+fn test_tree_operation_successor() {
+    let mut tree = MitCourseWareTree::initial_state();
 
-//     assert_equal!(tree.node_a.successor(), &tree.node_c);
-//     assert_equal!(tree.node_f.successor(), &tree.node_d);
-//     assert_equal!(tree.node_b.successor(), &tree.node_e);
-//     assert_equal!(tree.node_d.successor(), &tree.node_e);
+    assert_equal!(tree.node_e.successor(), &tree.node_a);
+    assert_equal!(tree.node_f.successor(), &tree.node_d);
+    assert_equal!(tree.node_b.successor(), &tree.node_e);
+    assert_equal!(tree.node_d.successor(), &tree.node_b);
+    assert_equal!(tree.node_a.successor(), &tree.node_c);
+    assert_equal!(tree.node_c.successor(), &tree.node_c);
+}
 
-//     assert_equal!(tree.node_e.successor(), &tree.node_e);
-//     assert_equal!(tree.node_c.successor(), &tree.node_c);
-// }
+
+#[test]
+fn test_tree_operation_successor_of_c() {
+    let mut tree = MitCourseWareTree::initial_state();
+
+    let mut node_g = Node::new(Value::from("G"));
+    tree.node_c.set_left(&mut node_g);
+
+    assert_equal!(tree.node_c.successor(), &node_g);
+}
