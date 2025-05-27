@@ -274,8 +274,15 @@ impl<'c> Node<'c> {
         unsafe { &mut *successor }
     }
 
-
-
+    pub fn subtree_insert_after(&mut self, new: &mut Node<'c>) {
+        if self.right.is_null() {
+            self.set_right(new);
+        } else {
+            let mut successor = self.successor_mut();
+            successor.set_left(new);
+            assert_eq!(new, self.successor());
+        }
+    }
 }
 
 /// Node private methods

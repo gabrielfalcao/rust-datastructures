@@ -242,3 +242,26 @@ fn test_tree_operation_successor_mut_of_c() {
 
     assert_equal!(tree.node_c.successor_mut(), &mut node_g);
 }
+
+
+#[test]
+fn test_tree_operation_subtree_insert_after_node_when_node_left_is_null() {
+    let mut tree = MitCourseWareTree::initial_state();
+
+    let mut node_g = Node::new(Value::from("G"));
+    tree.node_c.subtree_insert_after(&mut node_g);
+
+    assert_equal!(node_g.parent(), Some(&tree.node_c));
+}
+
+
+#[test]
+fn test_tree_operation_subtree_insert_after_node_when_node_right_is_non_null() {
+    let mut tree = MitCourseWareTree::initial_state();
+
+    let mut node_g = Node::new(Value::from("G"));
+    tree.node_a.subtree_insert_after(&mut node_g);
+
+    assert_equal!(node_g.parent(), tree.node_a.right());
+    // TODO: assert_equal!(node_g.parent(), Some(&tree.node_c));
+}
