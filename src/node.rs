@@ -374,7 +374,7 @@ impl<'c> Node<'c> {
         node
     }
 
-    pub fn predecessor_mut(&mut self) -> &'c Node<'c> {
+    pub fn predecessor_mut(&mut self) -> &'c mut Node<'c> {
         let mut predecessor = self as *mut Node<'c>;
         let mut node = unsafe { &mut *predecessor };
 
@@ -490,6 +490,9 @@ pub fn subtree_delete<'c>(node: &mut Node<'c>) {
         }
         node.parent = internal::null::node();
         return;
+    } else {
+        let mut predecessor = node.predecessor_mut();
+        subtree_delete(predecessor);
     }
 }
 
