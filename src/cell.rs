@@ -11,8 +11,8 @@ use std::ptr::NonNull;
 use crate::{car, cdr, color, cons, internal, step, Value};
 
 pub struct Cell<'c> {
-    head: *const Value<'c>,
-    tail: *const Cell<'c>,
+    head: *mut Value<'c>,
+    tail: *mut Cell<'c>,
     refs: usize,
 }
 
@@ -81,7 +81,7 @@ impl<'c> Cell<'c> {
                 }
             } else {
                 unsafe {
-                    let mut tail = &mut *self.tail.cast_mut();
+                    let mut tail = &mut *self.tail;
                     tail.add(new);
                 }
             }

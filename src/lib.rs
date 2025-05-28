@@ -1,5 +1,4 @@
 #![allow(unused)]
-#![recursion_limit = "10"]
 pub mod traits;
 pub use traits::ListValue;
 pub mod cons;

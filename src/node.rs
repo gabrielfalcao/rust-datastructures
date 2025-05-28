@@ -12,10 +12,10 @@ use std::ptr::NonNull;
 use crate::{color, internal, step, Value};
 
 pub struct Node<'c> {
-    parent: *const Node<'c>,
-    item: *const Value<'c>,
-    left: *const Node<'c>,
-    right: *const Node<'c>,
+    parent: *mut Node<'c>,
+    item: *mut Value<'c>,
+    left: *mut Node<'c>,
+    right: *mut Node<'c>,
     refs: usize,
 }
 
@@ -42,7 +42,7 @@ impl<'c> Node<'c> {
         let mut node = Node::nil();
         unsafe {
             let item = internal::alloc::value();
-            item.write(value);
+            item.write_volatile(value);
             node.item = item;
         }
         node
@@ -60,7 +60,7 @@ impl<'c> Node<'c> {
         if self.parent.is_null() {
             None
         } else {
-            unsafe { self.parent.cast_mut().as_mut() }
+            unsafe { self.parent.as_mut() }
         }
     }
 
@@ -87,16 +87,20 @@ impl<'c> Node<'c> {
     }
 
     pub fn set_left(&mut self, left: &mut Node<'c>) {
+        let left_addr_in = (left as *mut Node<'c>).addr();
         assert!(left.parent.is_null());
         assert!(self.left.is_null());
 
-        assert_ne!((left as *const Node<'c>).addr(), (self as *const Node<'c>).addr());
+        assert_ne!((left as *mut Node<'c>).addr(), (self as *mut Node<'c>).addr());
 
-        self.left = left as *const Node<'c>;
-        left.parent = self as *const Node<'c>;
+        self.left = left as *mut Node<'c>;
+        left.parent = self as *mut Node<'c>;
         self.incr_ref();
         left.incr_ref();
         assert!(self.left_addr() == left.addr());
+        let left_addr_out = (left as *mut Node<'c>).addr();
+        assert_eq!(self.left.addr(), left_addr_in);
+        assert_eq!(self.left.addr(), left_addr_out);
     }
 
     pub fn delete_left(&mut self) {
@@ -105,7 +109,7 @@ impl<'c> Node<'c> {
             return;
         }
         unsafe {
-            let mut left = self.left.cast_mut().as_mut().unwrap();
+            let mut left = self.left.as_mut().unwrap();
             if left.refs > 0 {
                 // step!("decr left: {:#?}", &left);
                 left.refs -= 1;
@@ -118,7 +122,14 @@ impl<'c> Node<'c> {
         if self.left.is_null() {
             None
         } else {
-            unsafe { self.left.as_ref() }
+            unsafe {
+                if let Some(left) = self.left.as_ref() {
+                    assert_eq!((left as *const Node<'c>).addr(), self.left.addr());
+                    Some(left)
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -126,7 +137,7 @@ impl<'c> Node<'c> {
         if self.left.is_null() {
             None
         } else {
-            unsafe { self.left.cast_mut().as_mut() }
+            unsafe { self.left.as_mut() }
         }
     }
 
@@ -139,17 +150,20 @@ impl<'c> Node<'c> {
     }
 
     pub fn set_right(&mut self, right: &mut Node<'c>) {
+        let right_addr_in = (right as *mut Node<'c>).addr();
         assert!(right.parent.is_null());
         assert!(self.right.is_null());
 
-        assert_ne!((right as *const Node<'c>).addr(), (self as *const Node<'c>).addr());
+        assert_ne!((right as *mut Node<'c>).addr(), (self as *mut Node<'c>).addr());
 
-        self.right = right as *const Node<'c>;
-        right.parent = self as *const Node<'c>;
+        self.right = right as *mut Node<'c>;
+        right.parent = self as *mut Node<'c>;
         self.incr_ref();
         right.incr_ref();
-
         assert!(self.right_addr() == right.addr());
+        let right_addr_out = (right as *mut Node<'c>).addr();
+        assert_eq!(self.right.addr(), right_addr_in);
+        assert_eq!(self.right.addr(), right_addr_out);
     }
 
     pub fn delete_right(&mut self) {
@@ -158,7 +172,7 @@ impl<'c> Node<'c> {
             return;
         }
         unsafe {
-            let mut right = self.right.cast_mut().as_mut().unwrap();
+            let mut right = self.right.as_mut().unwrap();
             if right.refs > 0 {
                 // step!("decr right: {:#?}", &right);
                 right.refs -= 1;
@@ -171,7 +185,14 @@ impl<'c> Node<'c> {
         if self.right.is_null() {
             None
         } else {
-            unsafe { self.right.as_ref() }
+            unsafe {
+                if let Some(right) = self.right.as_ref() {
+                    assert_eq!((right as *const Node<'c>).addr(), self.right.addr());
+                    Some(right)
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -179,7 +200,7 @@ impl<'c> Node<'c> {
         if self.right.is_null() {
             None
         } else {
-            unsafe { self.right.cast_mut().as_mut() }
+            unsafe { self.right.as_mut() }
         }
     }
 
@@ -257,10 +278,10 @@ impl<'c> Node<'c> {
                 if node.left.is_null() {
                     break;
                 }
-                subtree_first = node.left.as_ref().unwrap()
+                subtree_first = node.left.as_mut().unwrap()
             }
         }
-        unsafe { subtree_first.as_ref().unwrap() }
+        unsafe { subtree_first.as_mut().unwrap() }
     }
 
     pub fn successor(&self) -> &'c Node<'c> {
@@ -281,7 +302,7 @@ impl<'c> Node<'c> {
                 break;
             }
             if !node.parent.is_null() {
-                successor = node.parent as *const Node<'c>;
+                successor = node.parent as *mut Node<'c>;
                 node = unsafe { &*successor };
             } else {
                 break;
@@ -475,7 +496,7 @@ pub fn subtree_delete<'c>(node: &mut Node<'c>) {
     if node.leaf() {
         node.decr_ref();
         unsafe {
-            if let Some(parent) = node.parent.cast_mut().as_mut() {
+            if let Some(parent) = node.parent.as_mut() {
                 let delete_left = if let Some(parents_left_child) = parent.left() {
                     parents_left_child == node
                 } else {
@@ -488,7 +509,7 @@ pub fn subtree_delete<'c>(node: &mut Node<'c>) {
                 }
             }
         }
-        node.parent = internal::null::node();
+        // node.parent = internal::null::node();
         return;
     } else {
         let mut predecessor = node.predecessor_mut();
@@ -504,7 +525,7 @@ impl<'c> Node<'c> {
         let mut node = self;
         while !node.parent.is_null() {
             unsafe {
-                node = &mut *node.parent.cast_mut().as_mut().unwrap();
+                node = &mut *node.parent.as_mut().unwrap();
                 // step!("reference incremented by 1 {}", format!("{:#?}", node));
                 node.refs += 1;
             }
@@ -518,7 +539,7 @@ impl<'c> Node<'c> {
         let mut node = self;
         while !node.parent.is_null() {
             unsafe {
-                node = &mut *node.parent.cast_mut().as_mut().unwrap();
+                node = &mut *node.parent.as_mut().unwrap();
                 assert!(node.refs > 0);
                 node.refs -= 1;
                 // step!("reference decremented by 1 {}", format!("{:#?}", node));
@@ -587,22 +608,22 @@ impl<'c> Clone for Node<'c> {
         unsafe {
             if !self.item.is_null() {
                 let item = internal::alloc::value();
-                item.write(self.item.read());
+                item.write_volatile(self.item.read_volatile());
                 node.item = item;
             }
             if !self.parent.is_null() {
                 let parent = internal::alloc::node();
-                parent.write(self.parent.read());
+                parent.write_volatile(self.parent.read_volatile());
                 node.parent = parent;
             }
             if !self.left.is_null() {
                 let left = internal::alloc::node();
-                left.write(self.left.read());
+                left.write_volatile(self.left.read_volatile());
                 node.left = left;
             }
             if !self.right.is_null() {
                 let right = internal::alloc::node();
-                right.write(self.right.read());
+                right.write_volatile(self.right.read_volatile());
                 node.right = right;
             }
         }
@@ -614,7 +635,7 @@ impl<'c> Clone for Node<'c> {
 
 // //     fn deref(&self) -> &Node<'c> {
 // //         dbg!(&**self);
-// //         unsafe { (self as *const Node<'c>).as_ref().unwrap() }
+// //         unsafe { (self as *mut Node<'c>).as_ref().unwrap() }
 // //     }
 // // }
 
