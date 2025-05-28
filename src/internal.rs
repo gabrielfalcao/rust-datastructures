@@ -11,7 +11,7 @@ use std::ptr::NonNull;
 
 use crate::{Cell, Node, Value};
 pub(crate) struct UniquePointer<'c, T> {
-    ptr: Pin<ManuallyDrop<*mut T>>,
+    ptr: Pin<&'c mut *mut T>,
     _marker: PhantomData<&'c T>,
 }
 
@@ -19,7 +19,7 @@ impl<'c, T> UniquePointer<'c, T> {
     pub fn new(mut ptr: *mut T) -> UniquePointer<'c, T> {
         // let mut mut_ptr: &'c mut *mut T = unsafe {&mut *&mut ptr};
         UniquePointer {
-            ptr: Pin::new(ManuallyDrop::new(ptr)),
+            ptr: Pin::new(unsafe { std::mem::transmute::<*mut T, &mut *mut T>(ptr)}),
             _marker: PhantomData,
         }
     }
@@ -30,10 +30,9 @@ impl<'c, T> UniquePointer<'c, T> {
     }
 
     pub fn set(&mut self, mut ptr: *mut T) {
-        let mut ptr = ManuallyDrop::new(ptr);
         // // self.ptr = ptr;
         // let mut mut_ptr: &'c mut *mut T = unsafe {&mut *&mut ptr};
-        self.ptr = Pin::new(ptr);
+        self.ptr = Pin::new(unsafe { std::mem::transmute::<*mut T, &mut *mut T>(ptr)});
     }
 
     pub unsafe fn as_ref(&self) -> Option<&'c T> {
@@ -58,7 +57,9 @@ impl<'c, T> UniquePointer<'c, T> {
             // Pin::<&'c mut *mut T>::into_inner(mut_ptr)
             // let mut ptr = ManuallyDrop::new(&mut ptr);
             // let mut mut_ptr: &'c mut *mut T = ManuallyDrop::<&'c mut *mut T>::into_inner(ptr);
-            ManuallyDrop::into_inner(Pin::into_inner(self.ptr))
+            self.ptr.clone()
+            // let ptr = std::mem::transmute::<Pin<&mut *mut T>, Pin<&mut *mut T>>(self.ptr.clone());
+            // std::mem::transmute::<&mut *mut T, *mut T>(Pin::into_inner(ptr))
         }
     }
 
