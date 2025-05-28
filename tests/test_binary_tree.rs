@@ -38,7 +38,6 @@ impl<'t> MitCourseWareTree<'t> {
         let mut node_e = Node::new(Value::from("E"));
         let mut node_f = Node::new(Value::from("F"));
 
-
         // Then each node has its corresponding value
         assert_equal!(node_a.value(), Some(Value::from("A")));
         assert_equal!(node_b.value(), Some(Value::from("B")));
@@ -51,32 +50,42 @@ impl<'t> MitCourseWareTree<'t> {
         /// Scenario: Connect nodes and check the equality of the items parents ///
         ///                                                                     ///
         /// Given that I set D as in left of B                                  ///
-        node_b.set_left(&mut node_d);                                           ///
+        node_b.set_left(&mut node_d);
+        ///
         ///                                                                     ///
         /// And that I set B as in left of A before setting E as right of B     ///
         /// so as to test that memory references are set correctly*             ///
-        node_a.set_left(&mut node_b);                                           ///
+        node_a.set_left(&mut node_b);
+        ///
         ///                                                                     ///
         /// And that I set C as left of A                                       ///
-        node_a.set_right(&mut node_c);                                          ///
+        node_a.set_right(&mut node_c);
+        ///
         ///                                                                     ///
         /// And that I set E in right of B*                                     ///
-        node_b.set_right(&mut node_e);                                          ///
+        node_b.set_right(&mut node_e);
+        ///
         ///                                                                     ///
         /// And that I set F in left of D                                       ///
-        node_d.set_left(&mut node_f);                                           ///
+        node_d.set_left(&mut node_f);
+        ///
         ///                                                                     ///
         /// Then the parent of node B parent has value "A"                      ///
-        assert_equal!(node_b.parent_value(), node_a.value());                   ///
+        assert_equal!(node_b.parent_value(), node_a.value());
+        ///
         /// And the parent of node C parent has value "A"                       ///
-        assert_equal!(node_c.parent_value(), node_a.value());                   ///
+        assert_equal!(node_c.parent_value(), node_a.value());
+        ///
         /// And the parent of node D parent has value "B"                       ///
-        assert_equal!(node_d.parent_value(), node_b.value());                   ///
+        assert_equal!(node_d.parent_value(), node_b.value());
+        ///
         /// And the parent of node E parent has value "B"                       ///
-        assert_equal!(node_e.parent_value(), node_b.value());                   ///
+        assert_equal!(node_e.parent_value(), node_b.value());
+        ///
         ///                                                                     ///
         /// And the parent of node F parent has value "D"                       ///
-        assert_equal!(node_f.parent_value(), node_d.value());                   ///
+        assert_equal!(node_f.parent_value(), node_d.value());
+        ///
 
         /// //////////////////////////////////////////////// ///
         /// Scenario: Check the equality of parent nodes     ///
@@ -86,17 +95,22 @@ impl<'t> MitCourseWareTree<'t> {
         ///                                                  ///
         /// Then the parent of node B is node A              ///
         assert_equal!(node_b.parent(), Some(&node_a));       ///
+        ///                                                  ///
         /// And the parent of node C is node A               ///
         assert_equal!(node_c.parent(), Some(&node_a));       ///
         ///                                                  ///
+        ///                                                  ///
         /// And the parent of node D is node B               ///
         assert_equal!(node_d.parent(), Some(&node_b));       ///
+        ///                                                  ///
         /// And the parent of node E is node B               ///
         assert_equal!(node_e.parent(), Some(&node_b));       ///
+        ///                                                  ///
         /// And the parent of node F is node D               ///
         assert_equal!(node_f.parent(), Some(&node_d));       ///
+        ///                                                  ///
 
-        /// ////////////////////////////////////////////////////////                               ///
+        /// ////////////////////////////////////////////////////////////////////////////////////// ///
         /// Scenario: Check the equality of left and right nodes                                   ///
         /// (i.e.: `impl PartialEq for Node')                                                      ///
         ///                                                                                        ///
@@ -104,52 +118,122 @@ impl<'t> MitCourseWareTree<'t> {
         ///                                                                                        ///
         /// Then the left of node A is node B                                                      ///
         assert_equal!(node_a.left(), Some(&node_b));                                               ///
+        ///                                                                                        ///
         /// And the right of node A is node C                                                      ///
         assert_equal!(node_a.right(), Some(&node_c));                                              ///
+        ///                                                                                        ///
         /// And node A is the root node (no parent)                                                ///
         assert_equal!(node_a.parent(), None);                                                      ///
         ///                                                                                        ///
+        ///                                                                                        ///
         /// And the left of node B is node D                                                       ///
         assert_equal!(node_b.left(), Some(&node_d));                                               ///
+        ///                                                                                        ///
         /// And the right of node B is node E                                                      ///
         assert_equal!(node_b.right(), Some(&node_e));                                              ///
+        ///                                                                                        ///
         /// And the parent of node B is node A                                                     ///
         assert_equal!(node_b.parent(), Some(&node_a));                                             ///
+        ///                                                                                        ///
         /// And node B has no grand-parent                                                         ///
         assert_equal!(node_b.parent().unwrap().parent(), None);                                    ///
         ///                                                                                        ///
         assert_equal!(node_c.left(), None);                                                        ///
+        ///                                                                                        ///
         assert_equal!(node_c.right(), None);                                                       ///
+        ///                                                                                        ///
         assert_equal!(node_c.parent(), Some(&node_a));                                             ///
+        ///                                                                                        ///
         assert_equal!(node_c.parent().unwrap().parent(), None);                                    ///
         ///                                                                                        ///
         assert_equal!(node_d.left(), Some(&node_f));                                               ///
+        ///                                                                                        ///
         assert_equal!(node_d.right(), None);                                                       ///
+        ///                                                                                        ///
         assert_equal!(node_d.parent(), Some(&node_b));                                             ///
+        ///                                                                                        ///
         assert_equal!(node_d.parent().unwrap().parent(), Some(&node_a));                           ///
+        ///                                                                                        ///
         assert_equal!(node_d.parent().unwrap().parent().unwrap().parent(), None);                  ///
         ///                                                                                        ///
         assert_equal!(node_f.left(), None);                                                        ///
+        ///                                                                                        ///
         assert_equal!(node_f.right(), None);                                                       ///
+        ///                                                                                        ///
         assert_equal!(node_f.parent(), Some(&node_d));                                             ///
+        ///                                                                                        ///
         assert_equal!(node_f.parent().unwrap().parent(), Some(&node_b));                           ///
+        ///                                                                                        ///
         assert_equal!(node_f.parent().unwrap().parent().unwrap().parent(), Some(&node_a));         ///
+        ///                                                                                        ///
         assert_equal!(node_f.parent().unwrap().parent().unwrap().parent().unwrap().parent(), None);///
         ///                                                                                        ///
-
-        assert_equal!(node_a.refs(), 6);
-        assert_equal!(node_b.refs(), 6);
-        assert_equal!(node_c.refs(), 1);
-        assert_equal!(node_d.refs(), 3);
-        assert_equal!(node_e.refs(), 1);
-        assert_equal!(node_f.refs(), 1);
-        MitCourseWareTree {
+        assert_equal!(node_a.refs(), 8);                                                           ///
+        ///                                                                                        ///
+        assert_equal!(node_b.refs(), 7);                                                           ///
+        ///                                                                                        ///
+        assert_equal!(node_c.refs(), 1);                                                           ///
+        ///                                                                                        ///
+        assert_equal!(node_d.refs(), 3);                                                           ///
+        ///                                                                                        ///
+        assert_equal!(node_e.refs(), 1);                                                           ///
+        ///                                                                                        ///
+        assert_equal!(node_f.refs(), 1);                                                           ///
+        ///                                                                                        ///
+        let tree = MitCourseWareTree {
             node_a,
             node_b,
             node_c,
             node_d,
             node_e,
             node_f,
+        };
+        assert_equal!(tree.node_a.refs(), 8);
+        assert_equal!(tree.node_b.refs(), 7);
+        assert_equal!(tree.node_c.refs(), 1);
+        assert_equal!(tree.node_d.refs(), 3);
+        assert_equal!(tree.node_e.refs(), 1);
+        assert_equal!(tree.node_f.refs(), 1);
+        tree
+    }
+
+    pub fn expected_traversal_order(&mut self) -> [&mut Node<'t>; 6] {
+        [
+            self.node_f.as_mut(),
+            self.node_d.as_mut(),
+            self.node_b.as_mut(),
+            self.node_e.as_mut(),
+            self.node_a.as_mut(),
+            self.node_c.as_mut(),
+        ]
+    }
+
+    pub fn update(&mut self) {
+        let mut node = self.node_a.subtree_first_mut();
+        let mut expected_traversal_order = self.expected_traversal_order();
+        let mut index = 0;
+        while index < (expected_traversal_order.len() -1) {
+            if expected_traversal_order[index].value() == node.value() {
+                index += 1;node = node.successor_mut();
+                continue
+            } else {
+                if (index +1) < (expected_traversal_order.len() -1) {
+                    if let Some(node_left) = expected_traversal_order[index+1].left_mut() {
+                        if expected_traversal_order[index].value() == node_left.value() {
+                            expected_traversal_order[index+1].delete_left();
+                        }
+                    } else if let Some(node_right) = expected_traversal_order[index+1].right_mut() {
+                        if expected_traversal_order[index].value() == node_right.value() {
+                            expected_traversal_order[index+1].delete_right();
+                        }
+                    }
+                }
+                expected_traversal_order[index].dealloc();
+
+                index += 1;
+                continue
+            }
+            node = node.successor_mut();
         }
     }
 }
@@ -202,7 +286,6 @@ fn test_tree_property_leaf() {
     assert_equal!(tree.node_f.leaf(), true);
 }
 
-
 #[test]
 fn test_tree_operation_subtree_first() {
     let mut tree = MitCourseWareTree::initial_state();
@@ -216,7 +299,6 @@ fn test_tree_operation_subtree_first() {
     assert_equal!(tree.node_c.subtree_first(), &tree.node_c);
 }
 
-
 #[test]
 fn test_tree_operation_successor() {
     let mut tree = MitCourseWareTree::initial_state();
@@ -228,7 +310,6 @@ fn test_tree_operation_successor() {
     assert_equal!(tree.node_a.successor(), &tree.node_c);
     assert_equal!(tree.node_c.successor(), &tree.node_c);
 }
-
 
 #[test]
 fn test_tree_operation_successor_of_c() {
@@ -243,7 +324,6 @@ fn test_tree_operation_successor_of_c() {
 //////////////////////////////////////////////
 // MUT
 
-
 #[test]
 fn test_tree_operation_subtree_first_mut() {
     let mut tree = MitCourseWareTree::initial_state();
@@ -257,7 +337,6 @@ fn test_tree_operation_subtree_first_mut() {
     assert_equal!(tree.node_c.subtree_first_mut(), &mut tree.node_c);
 }
 
-
 #[test]
 fn test_tree_operation_successor_mut() {
     let mut tree = MitCourseWareTree::initial_state();
@@ -270,7 +349,6 @@ fn test_tree_operation_successor_mut() {
     assert_equal!(tree.node_c.successor_mut(), &mut tree.node_c);
 }
 
-
 #[test]
 fn test_tree_operation_successor_mut_of_c() {
     let mut tree = MitCourseWareTree::initial_state();
@@ -281,7 +359,6 @@ fn test_tree_operation_successor_mut_of_c() {
     assert_equal!(tree.node_c.successor_mut(), &mut node_g);
 }
 
-
 #[test]
 fn test_tree_operation_subtree_insert_after_node_when_node_left_is_null() {
     let mut tree = MitCourseWareTree::initial_state();
@@ -291,7 +368,6 @@ fn test_tree_operation_subtree_insert_after_node_when_node_left_is_null() {
 
     assert_equal!(node_g.parent(), Some(&tree.node_c));
 }
-
 
 #[test]
 fn test_tree_operation_subtree_insert_after_node_when_node_right_is_non_null() {
@@ -310,8 +386,6 @@ fn test_tree_operation_subtree_insert_after_node_when_node_right_is_non_null() {
     // // </TODO>
 }
 
-
-
 #[test]
 fn test_tree_operation_predecessor() {
     let mut tree = MitCourseWareTree::initial_state();
@@ -323,7 +397,6 @@ fn test_tree_operation_predecessor() {
     assert_equal!(tree.node_b.predecessor(), &tree.node_d);
 }
 
-
 #[test]
 fn test_tree_operation_predecessor_of_g_as_right_of_e() {
     let mut tree = MitCourseWareTree::initial_state();
@@ -333,7 +406,6 @@ fn test_tree_operation_predecessor_of_g_as_right_of_e() {
 
     assert_equal!(node_g.predecessor(), &tree.node_e);
 }
-
 
 #[test]
 fn test_tree_operation_predecessor_mut() {
@@ -346,7 +418,6 @@ fn test_tree_operation_predecessor_mut() {
     assert_equal!(tree.node_b.predecessor_mut(), &mut tree.node_d);
 }
 
-
 #[test]
 fn test_tree_operation_predecessor_mut_of_g_as_right_of_e() {
     let mut tree = MitCourseWareTree::initial_state();
@@ -356,7 +427,6 @@ fn test_tree_operation_predecessor_mut_of_g_as_right_of_e() {
 
     assert_equal!(node_g.predecessor_mut(), &mut tree.node_e);
 }
-
 
 #[test]
 fn test_tree_operation_swap_item() {
@@ -376,4 +446,38 @@ fn test_tree_operation_swap_item() {
     assert_equal!(tree.node_c.value(), Some(Value::from("C")));
     assert_equal!(tree.node_d.value(), Some(Value::from("D")));
     assert_equal!(tree.node_f.value(), Some(Value::from("F")));
+}
+
+#[test]
+fn test_tree_operation_subtree_delete_leaf_nodes() {
+    // Given the test tree in its initial state
+    let mut tree = MitCourseWareTree::initial_state();
+
+    // Then node D has 3 references
+    assert_equal!(tree.node_d.refs(), 3);
+
+    // When I subtree_delete node F
+    subtree_delete(&mut tree.node_f);
+
+    // And update the tree
+    tree.update();
+
+    // Then node D has no node in its left
+    assert_equal!(tree.node_d.left(), None);
+
+    // And node D has 2 references
+    assert_equal!(tree.node_d.left(), None);
+
+    // // // TODO:
+    // // /// And the references of all ancestors of D are decremented
+    // // assert_equal!(tree.node_a.refs(), 5);
+    // // assert_equal!(tree.node_b.refs(), 5);
+
+    // // /// And the references of the other leaf nodes remains unchanged
+    // // assert_equal!(tree.node_c.refs(), 1);
+    // // assert_equal!(tree.node_e.refs(), 1);
+
+    // // /// And node F has no more references
+    // // step_test!("node F has no more references {:#?}", &tree.node_f);
+    // // assert_equal!(tree.node_f.refs(), 0);
 }

@@ -1,5 +1,5 @@
 use std::borrow::{Borrow, Cow, ToOwned};
-use std::convert::AsRef;
+use std::convert::{AsMut, AsRef};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter::{Extend, FromIterator, IntoIterator};
@@ -56,6 +56,14 @@ impl<'c> Node<'c> {
         }
     }
 
+    pub fn parent_mut(&self) -> Option<&'c mut Node<'c>> {
+        if self.parent.is_null() {
+            None
+        } else {
+            unsafe { self.parent.cast_mut().as_mut() }
+        }
+    }
+
     pub fn value(&self) -> Option<Value<'c>> {
         if self.item.is_null() {
             None
@@ -79,12 +87,31 @@ impl<'c> Node<'c> {
     }
 
     pub fn set_left(&mut self, left: &mut Node<'c>) {
+        assert!(left.parent.is_null());
         assert!(self.left.is_null());
+
         assert_ne!((left as *const Node<'c>).addr(), (self as *const Node<'c>).addr());
-        left.set_parent(self);
-        self.refs += 1;
-        self.left = self.left.with_addr(left.addr());
+
+        self.left = left as *const Node<'c>;
+        left.parent = self as *const Node<'c>;
+        self.incr_ref();
+        left.incr_ref();
         assert!(self.left_addr() == left.addr());
+    }
+
+    pub fn delete_left(&mut self) {
+        // step!("delete left of {:#?}", self);
+        if self.left.is_null() {
+            return;
+        }
+        unsafe {
+            let mut left = self.left.cast_mut().as_mut().unwrap();
+            if left.refs > 0 {
+                // step!("decr left: {:#?}", &left);
+                left.refs -= 1;
+            }
+        }
+        self.left = internal::null::node();
     }
 
     pub fn left(&self) -> Option<&'c Node<'c>> {
@@ -92,6 +119,14 @@ impl<'c> Node<'c> {
             None
         } else {
             unsafe { self.left.as_ref() }
+        }
+    }
+
+    pub fn left_mut(&self) -> Option<&'c mut Node<'c>> {
+        if self.left.is_null() {
+            None
+        } else {
+            unsafe { self.left.cast_mut().as_mut() }
         }
     }
 
@@ -104,12 +139,32 @@ impl<'c> Node<'c> {
     }
 
     pub fn set_right(&mut self, right: &mut Node<'c>) {
+        assert!(right.parent.is_null());
         assert!(self.right.is_null());
+
         assert_ne!((right as *const Node<'c>).addr(), (self as *const Node<'c>).addr());
-        right.set_parent(self);
-        self.refs += 1;
-        self.right = self.right.with_addr(right.addr());
+
+        self.right = right as *const Node<'c>;
+        right.parent = self as *const Node<'c>;
+        self.incr_ref();
+        right.incr_ref();
+
         assert!(self.right_addr() == right.addr());
+    }
+
+    pub fn delete_right(&mut self) {
+        // step!("delete right of {:#?}", self);
+        if self.right.is_null() {
+            return;
+        }
+        unsafe {
+            let mut right = self.right.cast_mut().as_mut().unwrap();
+            if right.refs > 0 {
+                // step!("decr right: {:#?}", &right);
+                right.refs -= 1;
+            }
+        }
+        self.right = internal::null::node();
     }
 
     pub fn right(&self) -> Option<&'c Node<'c>> {
@@ -117,6 +172,14 @@ impl<'c> Node<'c> {
             None
         } else {
             unsafe { self.right.as_ref() }
+        }
+    }
+
+    pub fn right_mut(&self) -> Option<&'c mut Node<'c>> {
+        if self.right.is_null() {
+            None
+        } else {
+            unsafe { self.right.cast_mut().as_mut() }
         }
     }
 
@@ -310,6 +373,7 @@ impl<'c> Node<'c> {
         node = unsafe { &*predecessor };
         node
     }
+
     pub fn predecessor_mut(&mut self) -> &'c Node<'c> {
         let mut predecessor = self as *mut Node<'c>;
         let mut node = unsafe { &mut *predecessor };
@@ -336,37 +400,125 @@ impl<'c> Node<'c> {
         node = unsafe { &mut *predecessor };
         node
     }
+
     pub fn swap_item(&mut self, other: &mut Node<'c>) {
         let addr = other.item.addr();
         other.item = other.item.with_addr(self.item.addr());
         self.item = self.item.with_addr(addr);
     }
+
+    pub fn dealloc(&mut self) {
+        if self.refs > 0 {
+            self.decr_ref();
+            // if let Some(parent) = self.parent_mut() {
+            //     if let Some(node_left) = parent.left_mut() {
+            //         if node_left == self {
+            //             // step!("delete left of {:#?}", &parent);
+            //             parent.delete_left();
+            //         }
+            //     } else if let Some(node_right) = parent.right_mut() {
+            //         if node_right == self {
+            //             // step!("delete right of {:#?}", &parent);
+            //             parent.delete_right();
+            //         }
+            //     }
+            // }
+        } else {
+            unsafe {
+                let dealloc = if let Some(parent) = self.parent_mut() {
+                    parent.decr_ref();
+                    parent.refs == 0
+                } else {
+                    false
+                };
+                if dealloc {
+                    internal::dealloc::node(self.parent);
+                    self.parent = internal::null::node();
+                }
+            }
+            unsafe {
+                let dealloc = if let Some(left) = self.left_mut() {
+                    left.decr_ref();
+                    left.refs == 0
+                } else {
+                    false
+                };
+                if dealloc {
+                    internal::dealloc::node(self.left);
+                    self.left = internal::null::node();
+                }
+            }
+            unsafe {
+                let dealloc = if let Some(right) = self.right_mut() {
+                    right.decr_ref();
+                    right.refs == 0
+                } else {
+                    false
+                };
+                if dealloc {
+                    internal::dealloc::node(self.right);
+                    self.right = internal::null::node();
+                }
+            }
+
+            if !self.item.is_null() {
+                unsafe {
+                    internal::dealloc::value(self.item);
+                    self.item = internal::null::value();
+                }
+            }
+        }
+    }
+}
+
+pub fn subtree_delete<'c>(node: &mut Node<'c>) {
+    if node.leaf() {
+        node.decr_ref();
+        unsafe {
+            if let Some(parent) = node.parent.cast_mut().as_mut() {
+                let delete_left = if let Some(parents_left_child) = parent.left() {
+                    parents_left_child == node
+                } else {
+                    false
+                };
+                if delete_left {
+                    parent.left = internal::null::node();
+                } else {
+                    parent.right = internal::null::node();
+                }
+            }
+        }
+        node.parent = internal::null::node();
+        return;
+    }
 }
 
 /// Node private methods
 impl<'c> Node<'c> {
-    fn set_parent(&mut self, mut parent: &mut Node<'c>) {
-        assert!(self.parent.is_null());
-        self.parent = self.parent.with_addr(parent.addr());
+    fn incr_ref(&mut self) {
         self.refs += 1;
-        let mut node = parent;
-        node.refs += 1;
+        // step!("reference incremented by 1 {}", format!("{:#?}", self));
+        let mut node = self;
         while !node.parent.is_null() {
             unsafe {
-                node = &mut *node.parent.cast_mut();
+                node = &mut *node.parent.cast_mut().as_mut().unwrap();
+                // step!("reference incremented by 1 {}", format!("{:#?}", node));
                 node.refs += 1;
             }
         }
     }
 
-    fn incr_ref(&mut self) {
-        self.refs += 1;
-        if !self.parent.is_null() {
+    fn decr_ref(&mut self) {
+        assert!(self.refs > 0);
+        self.refs -= 1;
+        // step!("reference decremented by 1 {}", format!("{:#?}", self));
+        let mut node = self;
+        while !node.parent.is_null() {
             unsafe {
-                let mut parent = self.parent as *mut Node<'c>;
-                if let Some(mut parent) = parent.as_mut() {
-                    parent.refs += 1;
-                }
+                node = &mut *node.parent.cast_mut().as_mut().unwrap();
+                assert!(node.refs > 0);
+                node.refs -= 1;
+                // step!("reference decremented by 1 {}", format!("{:#?}", node));
             }
         }
     }
@@ -454,134 +606,113 @@ impl<'c> Clone for Node<'c> {
         node
     }
 }
+// // impl<'c> Deref for Node<'c> {
+// //     type Target = Node<'c>;
+
+// //     fn deref(&self) -> &Node<'c> {
+// //         dbg!(&**self);
+// //         unsafe { (self as *const Node<'c>).as_ref().unwrap() }
+// //     }
+// // }
+
+// impl<'c> DerefMut for Node<'c> {
+//     fn deref_mut(&mut self) -> &mut Node<'c> {
+//         dbg!(&mut **self);
+//         unsafe { (self as *mut Node<'c>).as_mut().unwrap() }
+//     }
+// }
+
+impl<'c> AsMut<Node<'c>> for Node<'c> {
+    fn as_mut(&mut self) -> &'c mut Node<'c> {
+        unsafe { (self as *mut Node<'c>).as_mut().unwrap() }
+    }
+}
 impl std::fmt::Debug for Node<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
             "{}",
-            [
-                crate::color::fore("Node@", 231),
-                format!("{:016x}", self.addr()),
-                // crate::color::ptr_inv(self),
-                if self.item.is_null() {
-                    color::fore("null", 196)
-                } else {
-                    format!(
-                        "[item={}]",
-                        self.value()
-                            .map(|value| color::fore(format!("{:#?}", value), 220))
-                            .unwrap_or_else(|| format!("empty"))
-                    )
-                },
-                if self.parent.is_null() {
-                    String::new()
-                } else {
-                    format!(
-                        "(parent:{})",
-                        if self.parent.is_null() {
-                            color::fore("null", 196)
-                        } else {
-                            self.parent_value()
-                                .map(|parent_value| {
-                                    color::fore(format!("{:#?}", parent_value), 220)
-                                })
+            crate::color::reset(
+                [
+                    crate::color::fg("Node@", 231),
+                    format!("{:016x}", self.addr()),
+                    // crate::color::ptr_inv(self),
+                    format!("[refs={}]", self.refs),
+                    if self.item.is_null() {
+                        color::fg("null", 196)
+                    } else {
+                        format!(
+                            "[item={}]",
+                            self.value()
+                                .map(|value| color::fg(format!("{:#?}", value), 220))
                                 .unwrap_or_else(|| format!("empty"))
-                        }
-                    )
-                },
-                if self.left.is_null() && self.right.is_null() {
-                    String::new()
-                } else {
-                    format!(
-                        "[left:{} | right:{}]",
-                        if self.left.is_null() {
-                            color::fore("null", 196)
-                        } else {
-                            self.left_value()
-                                .map(|left_value| color::fore(format!("{:#?}", left_value), 220))
-                                .unwrap_or_else(|| format!("empty"))
-                            //     self.left_value()
-                            //         .map(|left_value| {
-                            //             color::fore(format!("{:#?}", left_value), 220)
-                            //         })
-                            //         .unwrap_or_else(|| format!("empty")),
-                            //     crate::color::ptr_inv(self.left),
-                            // ]
-                            // .join("@")
-                        },
-                        if self.right.is_null() {
-                            color::fore("null", 196)
-                        } else {
-                            self.right_value()
-                                .map(|right_value| color::fore(format!("{:#?}", right_value), 220))
-                                .unwrap_or_else(|| format!("empty"))
-                            // [
-                            //     self.right_value()
-                            //         .map(|right_value| {
-                            //             color::fore(format!("{:#?}", right_value), 220)
-                            //         })
-                            //         .unwrap_or_else(|| format!("empty")),
-                            //     crate::color::ptr_inv(self.right),
-                            // ]
-                            // .join("@")
-                        }
-                    )
-                }
-            ]
-            .join("")
+                        )
+                    },
+                    if self.parent.is_null() {
+                        String::new()
+                    } else {
+                        format!(
+                            "(parent:{})",
+                            if self.parent.is_null() {
+                                color::fg("null", 196)
+                            } else {
+                                self.parent_value()
+                                    .map(|parent_value| {
+                                        color::fg(format!("{:#?}", parent_value), 220)
+                                    })
+                                    .unwrap_or_else(|| format!("empty"))
+                            }
+                        )
+                    },
+                    if self.left.is_null() && self.right.is_null() {
+                        String::new()
+                    } else {
+                        format!(
+                            "[left:{} | right:{}]",
+                            if self.left.is_null() {
+                                color::fg("null", 196)
+                            } else {
+                                self.left_value()
+                                    .map(|left_value| color::fg(format!("{:#?}", left_value), 220))
+                                    .unwrap_or_else(|| format!("empty"))
+                                //     self.left_value()
+                                //         .map(|left_value| {
+                                //             color::fg(format!("{:#?}", left_value), 220)
+                                //         })
+                                //         .unwrap_or_else(|| format!("empty")),
+                                //     crate::color::ptr_inv(self.left),
+                                // ]
+                                // .join("@")
+                            },
+                            if self.right.is_null() {
+                                color::fg("null", 196)
+                            } else {
+                                self.right_value()
+                                    .map(|right_value| {
+                                        color::fg(format!("{:#?}", right_value), 220)
+                                    })
+                                    .unwrap_or_else(|| format!("empty"))
+                                // [
+                                //     self.right_value()
+                                //         .map(|right_value| {
+                                //             color::fg(format!("{:#?}", right_value), 220)
+                                //         })
+                                //         .unwrap_or_else(|| format!("empty")),
+                                //     crate::color::ptr_inv(self.right),
+                                // ]
+                                // .join("@")
+                            }
+                        )
+                    }
+                ]
+                .join("")
+            )
         )
     }
 }
 impl<'c> Drop for Node<'c> {
     fn drop(&mut self) {
-        if self.refs > 0 {
-            self.refs -= 1;
-        } else {
-            unsafe {
-                let dealloc = if let Some(parent) = self.parent.cast_mut().as_mut() {
-                    if parent.refs > 0 {
-                        parent.refs -= 1;
-                    };
-                    parent.refs == 0
-                } else {
-                    false
-                };
-                if dealloc {
-                    internal::dealloc::node(self.parent);
-                }
-            }
-            unsafe {
-                let dealloc = if let Some(left) = self.left.cast_mut().as_mut() {
-                    if left.refs > 0 {
-                        left.refs -= 1;
-                    };
-                    left.refs == 0
-                } else {
-                    false
-                };
-                if dealloc {
-                    internal::dealloc::node(self.left);
-                }
-            }
-            unsafe {
-                let dealloc = if let Some(right) = self.right.cast_mut().as_mut() {
-                    if right.refs > 0 {
-                        right.refs -= 1;
-                    };
-                    right.refs == 0
-                } else {
-                    false
-                };
-                if dealloc {
-                    internal::dealloc::node(self.right);
-                }
-            }
-
-            if !self.item.is_null() {
-                unsafe {
-                    internal::dealloc::value(self.item);
-                }
-            }
-        }
+        // step!("drop {:#?}", &self);
+        self.dealloc()
     }
 }

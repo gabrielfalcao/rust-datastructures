@@ -31,14 +31,14 @@ macro_rules! step {
         let text = $text.to_string();
         eprintln!(
             "{}{}",
-            crate::color::bgfg(
+            crate::color::ansi(
                 format!(
                     "{}:{}",
                     $crate::function_name!(),
                     line!(),
                 ),
-                fg.into(),
                 bg.into(),
+                fg.into(),
             ),
             if text.is_empty() { String::new() } else { format!(" {}", text) }
 
@@ -71,13 +71,13 @@ macro_rules! step_test {
                     $crate::function_name!(),
                     line!(),
                 ),
-                bg.into(),
                 fg.into(),
+                bg.into(),
             ),
             crate::color::ansi(
                 if text.is_empty() { String::new() } else { format!("{}", text) },
-                fg.into(),
                 bg.into(),
+                fg.into(),
             ),
         );
     }};
