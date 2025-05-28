@@ -246,8 +246,8 @@ impl<'c> Drop for Cell<'c> {
             self.refs -= 1;
         } else {
             unsafe {
-                internal::dealloc::value(self.head);
-                internal::dealloc::cell(self.tail);
+                internal::dealloc::value(&mut self.head);
+                internal::dealloc::cell(&mut self.tail);
             }
         }
     }

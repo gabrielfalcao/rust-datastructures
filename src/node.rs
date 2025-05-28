@@ -453,7 +453,7 @@ impl<'c> Node<'c> {
                     false
                 };
                 if dealloc {
-                    internal::dealloc::node(self.parent);
+                    internal::dealloc::node(&mut self.parent);
                     self.parent = internal::null::node();
                 }
             }
@@ -465,7 +465,7 @@ impl<'c> Node<'c> {
                     false
                 };
                 if dealloc {
-                    internal::dealloc::node(self.left);
+                    internal::dealloc::node(&mut self.left);
                     self.left = internal::null::node();
                 }
             }
@@ -477,14 +477,14 @@ impl<'c> Node<'c> {
                     false
                 };
                 if dealloc {
-                    internal::dealloc::node(self.right);
+                    internal::dealloc::node(&mut self.right);
                     self.right = internal::null::node();
                 }
             }
 
             if !self.item.is_null() {
                 unsafe {
-                    internal::dealloc::value(self.item);
+                    internal::dealloc::value(&mut self.item);
                     self.item = internal::null::value();
                 }
             }
