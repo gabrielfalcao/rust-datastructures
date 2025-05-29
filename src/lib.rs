@@ -10,5 +10,6 @@ pub use value::Value;
 pub mod node;
 pub use node::{Node, subtree_delete};
 pub mod color;
+pub mod macros;
 pub(crate) mod internal;
 pub mod test;

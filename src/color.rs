@@ -52,7 +52,7 @@ pub fn ptr_colors<T: Sized>(addr: *const T) -> (u8, u8) {
         addr => couple(addr),
     }
 }
-pub fn ptr_repr<T: Sized + Debug>(
+pub fn ptr_repr<T>(
     ptr: *const T,
     bg: u8,
     fg: u8,
@@ -76,13 +76,13 @@ pub fn ptr_repr<T: Sized + Debug>(
         )
     }
 }
-pub fn ptr<T: Sized + Debug>(ptr: *const T) -> String {
+pub fn ptr<T>(ptr: *const T) -> String {
     let (bg, fg) = ptr_colors(ptr);
     let (null_bg, null_fg) = couple(9);
     let (nonnull_bg, nonnull_fg) = couple(101);
     ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
 }
-pub fn ptr_inv<T: Sized + Debug>(ptr: *const T) -> String {
+pub fn ptr_inv<T>(ptr: *const T) -> String {
     let (fg, bg) = ptr_colors(ptr);
     let (null_fg, null_bg) = couple(9);
     let (nonnull_fg, nonnull_bg) = couple(101);

@@ -54,31 +54,34 @@ pub(super) mod dealloc {
     use std::alloc::Layout;
 
     use super::{Cell, Node, Value};
-    unsafe fn free<T>(mut ptr: &mut *mut T) {
+    unsafe fn free<T>(mut ptr: *mut T) {
         let layout = Layout::new::<T>();
         unsafe {
             if !std::mem::needs_drop::<T>() {
+                #[rustfmt::skip]
                 eprintln!("no need to drop {}", crate::color::fore(std::any::type_name::<T>(), 178));
                 return;
             }
 
             #[rustfmt::skip]#[cfg(feature="debug")]
             eprintln!("{} {} {}", crate::color::fg("freeing", 9), crate::color::fg("ptr", 231), crate::color::ptr_inv(ptr));
-            std::alloc::dealloc((*ptr) as *mut u8, layout);
-            *ptr = super::null::ptr::<T>();
+
+            // eprintln!( "\n{}\n", format!( "{} {} at {}", crate::color::fore("deallocating", 196), crate::color::fore(std::any::type_name::<T>(), 231), crate::color::fore(format!("{:p}", ptr), 178) ) );
+            std::alloc::dealloc(ptr as *mut u8, layout);
+            // crate::step_test!("deallocated {} at {:p}", std::any::type_name::<T>(), ptr);
         };
     }
-    pub(crate) unsafe fn value<'c>(mut value: &mut *mut Value<'c>) {
+    pub(crate) unsafe fn value<'c>(mut value: *mut Value<'c>) {
         #[rustfmt::skip]#[cfg(feature="debug")]
         eprintln!("{} {} {}", crate::color::fg("freeing", 9), crate::color::fg("value", 136), crate::color::ptr_inv(value));
         unsafe { self::free::<Value<'c>>(value) }
     }
-    pub(crate) unsafe fn cell<'c>(mut cell: &mut *mut Cell<'c>) {
+    pub(crate) unsafe fn cell<'c>(mut cell: *mut Cell<'c>) {
         #[rustfmt::skip]#[cfg(feature="debug")]
         eprintln!("{} {} {}", crate::color::fg("freeing", 9), crate::color::fg("cell", 137), crate::color::ptr_inv(cell));
         unsafe { self::free::<Cell<'c>>(cell) }
     }
-    pub(crate) unsafe fn node<'c>(mut node: &mut *mut Node<'c>) {
+    pub(crate) unsafe fn node<'c>(mut node: *mut Node<'c>) {
         #[rustfmt::skip]#[cfg(feature="debug")]
         eprintln!("{} {} {}", crate::color::fg("freeing", 9), crate::color::fg("node", 28), crate::color::ptr_inv(node));
         unsafe { self::free::<Node<'c>>(node) }

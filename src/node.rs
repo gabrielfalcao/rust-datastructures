@@ -9,7 +9,7 @@ use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::pin::Pin;
 use std::ptr::NonNull;
 
-use crate::{color, internal, step, Value};
+use crate::{cast_node_mut, cast_node_ref, color, decr_ref_nonzero, internal, step, Value, step_test};
 
 pub struct Node<'c> {
     parent: *mut Node<'c>,
@@ -62,6 +62,22 @@ impl<'c> Node<'c> {
         } else {
             unsafe { self.parent.as_mut() }
         }
+    }
+
+    pub fn item(&self) -> Value<'c> {
+        self.value().unwrap_or_default()
+    }
+
+    pub fn id(&self) -> String {
+        format!(
+            "{}{}",
+            if self.item.is_null() {
+                format!("Null Node {:p}", self)
+            } else {
+                format!("Node {}", self.item())
+            },
+            format!(" ({} referefences)", self.refs)
+        )
     }
 
     pub fn value(&self) -> Option<Value<'c>> {
@@ -314,26 +330,27 @@ impl<'c> Node<'c> {
     pub fn subtree_first_mut(&mut self) -> &'c mut Node<'c> {
         if self.left.is_null() {
             let node = self as *mut Node<'c>;
-            return unsafe { &mut *node };
+            return cast_node_mut!(node, noincr);
         }
 
         let mut subtree_first = self.left as *mut Node<'c>;
 
         loop {
             unsafe {
-                let node = &mut *subtree_first;
+                let node = cast_node_mut!(subtree_first, noincr);
                 if node.left.is_null() {
                     break;
                 }
-                subtree_first = &mut *(node.left as *mut Node<'c>)
+                subtree_first = cast_node_mut!(node.left, noincr);
             }
         }
-        unsafe { &mut *subtree_first }
+
+        cast_node_mut!(subtree_first, noincr)
     }
 
     pub fn successor_mut(&mut self) -> &'c mut Node<'c> {
         if !self.right.is_null() {
-            return unsafe { (self.right as *mut Node<'c>).as_mut().unwrap() }.subtree_first_mut();
+            return cast_node_mut!(self.right, noincr).subtree_first_mut();
         }
 
         if let Some(parent) = self.parent() {
@@ -343,19 +360,20 @@ impl<'c> Node<'c> {
             }
         }
         let mut successor = self as *mut Node<'c>;
-        let mut node = unsafe { successor.as_mut().unwrap() };
+        let mut node = cast_node_mut!(successor, noincr);
+
         loop {
             if node.left() == Some(self) {
                 break;
             }
             if !node.parent.is_null() {
                 successor = node.parent as *mut Node<'c>;
-                node = unsafe { successor.as_mut().unwrap() };
+                node = cast_node_mut!(successor, noincr);
             } else {
                 break;
             };
         }
-        unsafe { successor.as_mut().unwrap() }
+        cast_node_mut!(successor, noincr)
     }
 
     pub fn subtree_insert_after(&mut self, new: &mut Node<'c>) {
@@ -397,20 +415,21 @@ impl<'c> Node<'c> {
 
     pub fn predecessor_mut(&mut self) -> &'c mut Node<'c> {
         let mut predecessor = self as *mut Node<'c>;
-        let mut node = unsafe { &mut *predecessor };
+        let mut node = cast_node_mut!(predecessor, noincr);
 
         loop {
             if !node.left.is_null() {
                 predecessor = node.left as *mut Node<'c>;
-                node = unsafe { &mut *predecessor };
+                node = cast_node_mut!(predecessor, noincr);
                 if !node.right.is_null() {
                     predecessor = node.right as *mut Node<'c>;
-                    node = unsafe { &mut *predecessor };
+                    node = cast_node_mut!(predecessor, noincr);
                 }
                 break;
             } else if !node.parent.is_null() {
                 predecessor = node.parent as *mut Node<'c>;
-                node = unsafe { &mut *predecessor };
+                node = cast_node_mut!(predecessor, noincr);
+
                 if let Some(right) = node.right() {
                     if right == self {
                         break;
@@ -418,16 +437,40 @@ impl<'c> Node<'c> {
                 }
             }
         }
-        node = unsafe { &mut *predecessor };
-        node
+        cast_node_mut!(predecessor, noincr)
     }
 
-    pub fn swap_item(&mut self, other: &mut Node<'c>) {
-        let addr = other.item.addr();
-        other.item = other.item.with_addr(self.item.addr());
-        self.item = self.item.with_addr(addr);
+    pub fn disconnect(&mut self) {
+        if !self.left.is_null() {
+            unsafe {
+                let node = cast_node_mut!(self.left, noincr);
+                decr_ref_nonzero!(node);
+            }
+        }
+        if !self.right.is_null() {
+            unsafe {
+                let node = cast_node_mut!(self.right, noincr);
+                decr_ref_nonzero!(node);
+            }
+        }
+        if !self.parent.is_null() {
+            unsafe {
+                let mut parent = cast_node_mut!(self.parent, noincr);
+                let delete_left = if let Some(parents_left_child) = parent.left() {
+                    parents_left_child == self
+                } else {
+                    false
+                };
+                if delete_left {
+                    parent.left = internal::null::node();
+                } else {
+                    parent.right = internal::null::node();
+                }
+                parent.decr_ref();
+            }
+            self.parent = internal::null::node();
+        }
     }
-
     pub fn dealloc(&mut self) {
         if self.refs > 0 {
             self.decr_ref();
@@ -445,74 +488,80 @@ impl<'c> Node<'c> {
             //     }
             // }
         } else {
-            unsafe {
-                let dealloc = if let Some(parent) = self.parent_mut() {
-                    parent.decr_ref();
-                    parent.refs == 0
-                } else {
-                    false
-                };
-                if dealloc {
-                    internal::dealloc::node(&mut self.parent);
+            if !self.parent.is_null() {
+                unsafe {
+                    let parent_ptr = self.parent;
+                    let parent = cast_node_mut!(parent_ptr, noincr);
+                    parent.dealloc();
                     self.parent = internal::null::node();
+                    internal::dealloc::node(parent_ptr);
                 }
             }
-            unsafe {
-                let dealloc = if let Some(left) = self.left_mut() {
+            if !self.left.is_null() {
+                unsafe {
+                    let left = cast_node_mut!(self.left, noincr);
                     left.decr_ref();
-                    left.refs == 0
-                } else {
-                    false
-                };
-                if dealloc {
-                    internal::dealloc::node(&mut self.left);
+                    internal::dealloc::node(self.left);
                     self.left = internal::null::node();
                 }
             }
-            unsafe {
-                let dealloc = if let Some(right) = self.right_mut() {
+            if !self.right.is_null() {
+                unsafe {
+                    let right = cast_node_mut!(self.right, noincr);
                     right.decr_ref();
-                    right.refs == 0
-                } else {
-                    false
-                };
-                if dealloc {
-                    internal::dealloc::node(&mut self.right);
+                    internal::dealloc::node(self.right);
                     self.right = internal::null::node();
                 }
             }
-
             if !self.item.is_null() {
                 unsafe {
-                    internal::dealloc::value(&mut self.item);
+                    internal::dealloc::value(self.item);
                     self.item = internal::null::value();
                 }
             }
         }
     }
+    pub fn swap_item(&mut self, other: &mut Node<'c>) {
+        // step_test!("before self={} other={}", self, other);
+        let addr = other.item.addr();
+        other.item = other.item.with_addr(self.item.addr());
+        self.item = self.item.with_addr(addr);
+
+        // let refs = other.refs;
+        // other.refs = self.refs;
+        // self.refs = refs;
+        // step_test!("after self={} other={}", self, other);
+    }
 }
 
 pub fn subtree_delete<'c>(node: &mut Node<'c>) {
+    // step!("subtree delete node {:#?}", node);
     if node.leaf() {
         node.decr_ref();
+        // step!("deleting leaf node {:#?}", node);
+        if node.parent.is_null() {
+            unreachable!("leaf node {} should have a parent", node);
+        }
         unsafe {
-            if let Some(parent) = node.parent.as_mut() {
-                let delete_left = if let Some(parents_left_child) = parent.left() {
-                    parents_left_child == node
-                } else {
-                    false
-                };
-                if delete_left {
-                    parent.left = internal::null::node();
-                } else {
-                    parent.right = internal::null::node();
-                }
+            let mut parent = cast_node_mut!(node.parent, noincr);
+            // parent.decr_ref();
+            let delete_left = if let Some(parents_left_child) = parent.left() {
+                parents_left_child == node
+            } else {
+                false
+            };
+            if delete_left {
+                parent.left = internal::null::node();
+            } else {
+                parent.right = internal::null::node();
             }
         }
-        // node.parent = internal::null::node();
+        node.refs = 0;
+        node.parent = internal::null::node();
         return;
     } else {
         let mut predecessor = node.predecessor_mut();
+        predecessor.swap_item(node);
         subtree_delete(predecessor);
     }
 }
@@ -525,7 +574,7 @@ impl<'c> Node<'c> {
         let mut node = self;
         while !node.parent.is_null() {
             unsafe {
-                node = &mut *node.parent.as_mut().unwrap();
+                node = cast_node_mut!(node.parent, noincr);
                 // step!("reference incremented by 1 {}", format!("{:#?}", node));
                 node.refs += 1;
             }
@@ -533,15 +582,13 @@ impl<'c> Node<'c> {
     }
 
     fn decr_ref(&mut self) {
-        assert!(self.refs > 0);
-        self.refs -= 1;
+        decr_ref_nonzero!(self);
         // step!("reference decremented by 1 {}", format!("{:#?}", self));
         let mut node = self;
         while !node.parent.is_null() {
             unsafe {
-                node = &mut *node.parent.as_mut().unwrap();
-                assert!(node.refs > 0);
-                node.refs -= 1;
+                node = cast_node_mut!(node.parent, noincr);
+                decr_ref_nonzero!(node);
                 // step!("reference decremented by 1 {}", format!("{:#?}", node));
             }
         }
@@ -582,6 +629,24 @@ impl<'c> Node<'c> {
 
 impl<'c> PartialEq<Node<'c>> for Node<'c> {
     fn eq(&self, other: &Node<'c>) -> bool {
+        if self.parent_eq(other)
+            && self.item_eq(other)
+            && self.left_eq(other)
+            && self.right_eq(other)
+        {
+            self.value().unwrap_or_default() == other.value().unwrap_or_default()
+                && self.parent_value() == other.parent_value()
+                && self.left_value() == other.left_value()
+                && self.right_value() == other.right_value()
+        } else {
+            false
+        }
+    }
+}
+
+impl<'c> PartialEq<&mut Node<'c>> for Node<'c> {
+    fn eq(&self, other: &&mut Node<'c>) -> bool {
+        let other = unsafe { &**other };
         if self.parent_eq(other)
             && self.item_eq(other)
             && self.left_eq(other)
@@ -646,12 +711,22 @@ impl<'c> Clone for Node<'c> {
 //     }
 // }
 
-impl<'c> AsMut<Node<'c>> for Node<'c> {
-    fn as_mut(&mut self) -> &'c mut Node<'c> {
-        unsafe { (self as *mut Node<'c>).as_mut().unwrap() }
+impl<'c> AsRef<Node<'c>> for Node<'c> {
+    fn as_ref(&self) -> &'c Node<'c> {
+        cast_node_ref!(self as *const Node<'c>)
     }
 }
-impl std::fmt::Debug for Node<'_> {
+impl<'c> AsMut<Node<'c>> for Node<'c> {
+    fn as_mut(&mut self) -> &'c mut Node<'c> {
+        cast_node_mut!(self as *mut Node<'c>, incr)
+    }
+}
+impl<'c> std::fmt::Display for Node<'c> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.id())
+    }
+}
+impl<'c> std::fmt::Debug for Node<'c> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
