@@ -228,17 +228,17 @@ fn test_unique_pointer_clone() {
     assert_equal!(data.value.is_null(), false);
     assert_equal!(data.value.is_allocated(), true);
     assert_greater_than!(data.value.addr(), 0, "address should not be null");
-    // assert_equal!(data.value.is_written(), true);
-    // assert_equal!(data.value.inner_mut(), &mut Value::from("updated"));
-    // assert_equal!(data.value.read(), Value::from("updated"));
-    // assert_equal!(data.value.as_ref(), Some(&Value::from("updated")));
-    // assert_equal!(data.value.as_mut(), Some(&mut Value::from("updated")));
+    assert_equal!(data.value.is_written(), true);
+    assert_equal!(data.value.inner_mut(), &mut Value::from("updated"));
+    assert_equal!(data.value.read(), Value::from("updated"));
+    assert_equal!(data.value.as_ref(), Some(&Value::from("updated")));
+    assert_equal!(data.value.as_mut(), Some(&mut Value::from("updated")));
 
-    // assert_equal!(clone.value.is_null(), false);
-    // assert_greater_than!(clone.value.addr(), 0, "address should not be null");
-    // assert_equal!(clone.value.is_written(), true);
-    // assert_equal!(clone.value.inner_mut(), &mut Value::from("updated"));
-    // assert_equal!(clone.value.read(), Value::from("updated"));
-    // assert_equal!(clone.value.as_ref(), Some(&Value::from("updated")));
-    // assert_equal!(clone.value.as_mut(), Some(&mut Value::from("updated")));
+    assert_equal!(clone.value.is_null(), false);
+    assert_greater_than!(clone.value.addr(), 0, "address should not be null");
+    assert_equal!(clone.value.is_written(), true);
+    assert_equal!(clone.value.inner_mut(), &mut Value::from("updated"));
+    assert_equal!(clone.value.read(), Value::from("updated"));
+    assert_equal!(clone.value.as_ref(), Some(&Value::from("updated")));
+    assert_equal!(clone.value.as_mut(), Some(&mut Value::from("updated")));
 }

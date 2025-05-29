@@ -81,11 +81,18 @@ impl RefCounter {
     }
 
     fn inner_ref<'c>(&self) -> &'c usize {
+        if self.data.is_null() {
+            &0
+        } else {
         let ptr = self.cast_const();
-        unsafe { std::mem::transmute::<&usize, &'c usize>(&*ptr) }
+            unsafe { std::mem::transmute::<&usize, &'c usize>(&*ptr) }
+        }
     }
 
     fn inner_mut<'c>(&self) -> &'c mut usize {
+        if self.data.is_null() {
+            panic!("uninitialized");
+        }
         let mut ptr = self.cast_mut();
         unsafe { std::mem::transmute::<&mut usize, &'c mut usize>(&mut *ptr) }
     }
