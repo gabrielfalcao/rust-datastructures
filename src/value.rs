@@ -106,3 +106,18 @@ impl<'c> From<Option<String>> for Value<'c> {
         }
     }
 }
+
+impl<'c> PartialEq<&Value<'c>> for Value<'c> {
+    fn eq(&self, other: &&Value<'c>) -> bool {
+        let other = unsafe { &**other };
+        self == other
+    }
+}
+
+
+impl<'c> PartialEq<&mut Value<'c>> for Value<'c> {
+    fn eq(&self, other: &&mut Value<'c>) -> bool {
+        let other = unsafe { &**other };
+        self == other
+    }
+}

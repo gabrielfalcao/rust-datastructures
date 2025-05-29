@@ -106,14 +106,14 @@ fn test_add_and_pop() {
 
     assert_equal!(head.pop(), true);
 
-    assert_equal!(head.values(), vec![]);
+    assert_equal!(head.values(), Vec::<Value>::new());
     assert_equal!(head.len(), 0);
 
     assert_equal!(head.pop(), false);
-    assert_equal!(head.values(), vec![]);
+    assert_equal!(head.values(), Vec::<Value>::new());
     assert_equal!(head.len(), 0);
 
     assert_equal!(head.pop(), false);
-    assert_equal!(head.values(), vec![]);
+    assert_equal!(head.values(), Vec::<Value>::new());
     assert_equal!(head.len(), 0);
 }
