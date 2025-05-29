@@ -120,17 +120,11 @@ impl<'c> Node<'c> {
     }
 
     pub fn delete_left(&mut self) {
-        // step!("delete left of {:#?}", self);
         if self.left.is_null() {
             return;
         }
-        unsafe {
-            let mut left = self.left.as_mut().unwrap();
-            if left.refs > 0 {
-                // step!("decr left: {:#?}", &left);
-                left.refs -= 1;
-            }
-        }
+        let mut left = cast_node_mut!(self.left, noincr);
+        left.decr_ref();
         self.left = internal::null::node();
     }
 
@@ -183,17 +177,11 @@ impl<'c> Node<'c> {
     }
 
     pub fn delete_right(&mut self) {
-        // step!("delete right of {:#?}", self);
         if self.right.is_null() {
             return;
         }
-        unsafe {
-            let mut right = self.right.as_mut().unwrap();
-            if right.refs > 0 {
-                // step!("decr right: {:#?}", &right);
-                right.refs -= 1;
-            }
-        }
+        let mut right = cast_node_mut!(self.right, noincr);
+        right.decr_ref();
         self.right = internal::null::node();
     }
 

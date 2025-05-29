@@ -11,5 +11,7 @@ pub mod node;
 pub use node::{Node, subtree_delete};
 pub mod color;
 pub mod macros;
+pub mod unique_pointer;
+pub use unique_pointer::UniquePointer;
 pub(crate) mod internal;
 pub mod test;
