@@ -3,12 +3,12 @@ use ds::*;
 use k9::assert_equal;
 
 struct MitCourseWareTree<'t> {
-    pub node_a: Node<'t>,
-    pub node_b: Node<'t>,
-    pub node_c: Node<'t>,
-    pub node_d: Node<'t>,
-    pub node_e: Node<'t>,
-    pub node_f: Node<'t>,
+    pub node_a: &'t mut Node<'t>,
+    pub node_b: &'t mut Node<'t>,
+    pub node_c: &'t mut Node<'t>,
+    pub node_d: &'t mut Node<'t>,
+    pub node_e: &'t mut Node<'t>,
+    pub node_f: &'t mut Node<'t>,
 }
 impl<'t> MitCourseWareTree<'t> {
     pub fn initial_state() -> MitCourseWareTree<'t> {
@@ -215,20 +215,20 @@ impl<'t> MitCourseWareTree<'t> {
         ///                                                                                        ///
         let tree = unsafe {
             MitCourseWareTree {
-                node_a,
-                node_b,
-                node_c,
-                node_d,
-                node_e,
-                node_f,
+                node_a: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_a.as_mut()),
+                node_b: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_b.as_mut()),
+                node_c: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_c.as_mut()),
+                node_d: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_d.as_mut()),
+                node_e: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_e.as_mut()),
+                node_f: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_f.as_mut()),
             }
         };
-        assert_equal!(tree.node_a.refs(), 8);
-        assert_equal!(tree.node_b.refs(), 7);
-        assert_equal!(tree.node_c.refs(), 1);
-        assert_equal!(tree.node_d.refs(), 3);
-        assert_equal!(tree.node_e.refs(), 1);
-        assert_equal!(tree.node_f.refs(), 1);
+        assert_equal!(tree.node_a.refs(), 14);
+        assert_equal!(tree.node_b.refs(), 11);
+        assert_equal!(tree.node_c.refs(), 2);
+        assert_equal!(tree.node_d.refs(), 5);
+        assert_equal!(tree.node_e.refs(), 2);
+        assert_equal!(tree.node_f.refs(), 2);
         unsafe { std::mem::transmute::<MitCourseWareTree, MitCourseWareTree<'t>>(tree) }
     }
 }

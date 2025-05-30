@@ -30,6 +30,10 @@ name = "binary_tree"
 path = "./tests/test_binary_tree.rs"
 
 [[test]]
+name = "binary_tree_with_references"
+path = "./tests/test_binary_tree_refs.rs"
+
+[[test]]
 name = "node"
 path = "./tests/test_node.rs"
 
