@@ -25,7 +25,6 @@ path = "./tests/test_unique_ptr.rs"
 name = "refcounter"
 path = "./tests/test_refcounter.rs"
 
-
 [[test]]
 name = "binary_tree"
 path = "./tests/test_binary_tree.rs"

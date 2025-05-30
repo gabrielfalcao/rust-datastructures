@@ -134,14 +134,14 @@ pub fn addr_repr(
     }
 }
 pub fn addr(addr: usize) -> String {
-    let (fg, bg) = addr_colors(addr);
-    let (null_fg, null_bg) = couple(9);
-    let (nonnull_fg, nonnull_bg) = couple(101);
-    addr_repr(addr, bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
-}
-pub fn addr_inv(addr: usize) -> String {
     let (bg, fg) = addr_colors(addr);
     let (null_bg, null_fg) = couple(9);
     let (nonnull_bg, nonnull_fg) = couple(101);
+    addr_repr(addr, bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
+}
+pub fn addr_inv(addr: usize) -> String {
+    let (fg, bg) = addr_colors(addr);
+    let (null_fg, null_bg) = couple(9);
+    let (nonnull_fg, nonnull_bg) = couple(101);
     addr_repr(addr, bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
 }

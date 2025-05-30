@@ -10,8 +10,6 @@ use crate::{color, decr_ref_nonzero, internal, step, RefCounter};
 pub struct UniquePointer<'c, T> {
     mut_addr: usize,
     mut_ptr: *mut T,
-    const_addr: usize,
-    const_ptr: *const T,
     orig_addr: usize,
     refs: RefCounter,
     alloc: bool,
@@ -24,8 +22,6 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         UniquePointer {
             mut_addr: 0,
             mut_ptr: std::ptr::null_mut::<T>(),
-            const_addr: 0,
-            const_ptr: std::ptr::null::<T>(),
             orig_addr: 0,
             refs: RefCounter::new(),
             written: false,
@@ -53,14 +49,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         } else {
             assert!(self.mut_addr != 0);
         }
-        let const_is_null = self.const_ptr.is_null();
-        if const_is_null {
-            assert!(self.const_addr == 0);
-        } else {
-            assert!(self.const_addr != 0);
-        }
-
-        let is_null = mut_is_null && const_is_null;
+        let is_null = mut_is_null;
         is_null
     }
 
@@ -90,13 +79,9 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             ptr as *mut T
         };
         self.mut_ptr = mut_ptr;
-        let const_ptr = mut_ptr.cast_const();
-        self.const_ptr = const_ptr;
 
         let mut_provenance = UniquePointer::<'c, T>::provenance_of_mut_ptr(mut_ptr);
         self.mut_addr = mut_provenance;
-        let const_provenance = UniquePointer::<'c, T>::provenance_of_const_ptr(const_ptr);
-        self.const_addr = const_provenance;
         self.alloc = true;
         self.refs.incr();
     }
@@ -152,12 +137,12 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         if self.is_null() {
             panic!("{:#?} is null", self);
         }
-        self.const_ptr
+        self.mut_ptr.cast_const()
     }
 
     pub fn inner_ref(&self) -> &'c T {
         self.incr_ref();
-        unsafe { std::mem::transmute::<&T, &'c T>(&*self.const_ptr) }
+        unsafe { std::mem::transmute::<&T, &'c T>(&*self.cast_const()) }
     }
 
     pub fn inner_mut(&mut self) -> &'c mut T {
@@ -188,14 +173,13 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         if !soft && self.refs > 0 {
             self.decr_ref();
         } else {
+            // self.reset();
             self.free();
-            self.reset();
         }
     }
 
     fn reset(&mut self) {
         self.mut_addr = 0;
-        self.const_addr = 0;
         self.refs.reset();
         self.alloc = false;
         self.written = false;
@@ -205,13 +189,10 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         if !self.is_null() {
             let layout = Layout::new::<T>();
             let mut_ptr = self.mut_ptr;
-            let const_ptr = self.const_ptr;
             self.mut_ptr = std::ptr::null_mut::<T>();
             self.mut_addr = 0;
-            self.const_ptr = std::ptr::null::<T>();
-            self.const_addr = 0;
             unsafe {
-                std::alloc::dealloc(mut_ptr as *mut u8, layout);
+                std::alloc::dealloc(self.mut_ptr as *mut u8, layout);
             };
         }
     }
@@ -323,6 +304,7 @@ impl<'c, T: 'c> DerefMut for UniquePointer<'c, T> {
 
 impl<'c, T: 'c> Drop for UniquePointer<'c, T> {
     fn drop(&mut self) {
+        self.dealloc(true);
     }
 }
 
@@ -350,8 +332,6 @@ impl<'c, T: 'c> Clone for UniquePointer<'c, T> {
 
         clone.mut_addr = self.mut_addr;
         clone.mut_ptr = self.mut_ptr;
-        clone.const_addr = self.const_addr;
-        clone.const_ptr = self.const_ptr;
 
         clone.refs = self.refs.clone();
         clone.alloc = self.alloc;
