@@ -66,9 +66,7 @@ pub(super) mod dealloc {
             #[rustfmt::skip]#[cfg(feature="debug")]
             eprintln!("{} {} {}", crate::color::fg("freeing", 9), crate::color::fg("ptr", 231), crate::color::ptr_inv(ptr));
 
-            // eprintln!( "\n{}\n", format!( "{} {} at {}", crate::color::fore("deallocating", 196), crate::color::fore(std::any::type_name::<T>(), 231), crate::color::fore(format!("{:p}", ptr), 178) ) );
             std::alloc::dealloc(ptr as *mut u8, layout);
-            // crate::step_test!("deallocated {} at {:p}", std::any::type_name::<T>(), ptr);
         };
     }
     pub(crate) unsafe fn value<'c>(mut value: *mut Value<'c>) {

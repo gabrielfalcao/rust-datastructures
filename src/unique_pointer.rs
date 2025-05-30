@@ -47,55 +47,38 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     pub fn is_null(&self) -> bool {
-        step!();
         let mut_is_null = self.mut_ptr.is_null();
         if mut_is_null {
-            step!("((self.mut_addr == {}) == 0) == true?", color::addr(self.mut_addr));
             assert!(self.mut_addr == 0);
         } else {
-            step!("((self.mut_addr == {}) == 0) == false?", color::addr(self.mut_addr));
             assert!(self.mut_addr != 0);
         }
         let const_is_null = self.const_ptr.is_null();
         if const_is_null {
-            step!("((self.const_addr == {}) == 0) == true?", color::addr(self.const_addr));
             assert!(self.const_addr == 0);
         } else {
-            step!("((self.const_addr == {}) == 0) == false?", color::addr(self.const_addr));
             assert!(self.const_addr != 0);
         }
 
-        let is_null = dbg!(dbg!(mut_is_null) && dbg!(const_is_null));
-        step!("self.mut_addr == {:#?}", self.mut_addr);
-        step!("self.const_addr == {:#?}", self.const_addr);
-        step!("self.is_null == {:#?}", is_null);
-        // !self.mut_ptr.is_null() || self.mut_addr == 0
+        let is_null = mut_is_null && const_is_null;
         is_null
     }
 
     pub fn is_allocated(&self) -> bool {
         let is_allocated = !self.is_null() && self.alloc;
-        step!("self.alloc == {:#?}", self.alloc);
-        step!("self.is_allocated == {:#?}", is_allocated);
         is_allocated
     }
 
     pub fn is_written(&self) -> bool {
-        step!("self.written == {:#?}", self.written);
         let is_written = self.is_allocated() && self.written;
-        step!("self.is_written == {:#?}", is_written);
         is_written
     }
 
     pub fn alloc(&mut self) {
-        step!("start");
 
-        step!("check if self is allocated");
         if self.is_allocated() {
-            step!("self.is_allocated, no need for allocation");
             return;
         } else {
-            step!("self is not allocated");
         }
 
         let layout = Layout::new::<T>();
@@ -114,51 +97,26 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         self.mut_addr = mut_provenance;
         let const_provenance = UniquePointer::<'c, T>::provenance_of_const_ptr(const_ptr);
         self.const_addr = const_provenance;
-        step!("setting self.alloc = true");
         self.alloc = true;
         self.refs.incr();
-        step!("end");
     }
 
     pub fn write(&mut self, data: T) {
         let orig_addr = UniquePointer::<'c, T>::raw_addr_of_ref(&data);
-        // step!(
-        //     "\n\rraw_addr_of_ref(&data: {}) == \n\r{} == \n\r{}",
-        //     std::any::type_name::<T>(),
-        //     color::addr(orig_addr),
-        //     color::ref_addr(&data)
-        // );
-        // step!(
-        //     "\n\rstd::ptr::from_ref(&data: {}).addr() == \n\r{} == \n\r{}",
-        //     std::any::type_name::<T>(),
-        //     color::addr(std::ptr::from_ref(&data).addr()),
-        //     color::ref_addr(&data)
-        // );
-        step!("start");
         let mut up = self.meta_mut();
-        step!("check if self is written");
         if self.is_written() {
-            // panic!("already written {:#?}", self);
-            step!("self is written, so: free it");
-            // self.free();
-            // self.reset();
         } else {
-            step!("self is not written");
         }
         self.alloc();
         let mut ptr = self.cast_mut();
         unsafe {
-            step!("unsafe write");
             ptr.write(data);
         }
-        step!("setting self.written = true");
         self.written = true;
         self.orig_addr = orig_addr;
-        step!("end");
     }
 
     pub fn write_ref_mut<'r>(&'c self, data: &'r mut T) {
-        step!();
         let mut up = self.meta_mut();
         up.write(unsafe {
             let ptr = data as *mut T;
@@ -175,7 +133,6 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     pub fn read(&self) -> T {
-        step!();
         if !self.is_written() {
             panic!("{:#?} not written", self);
         }
@@ -185,16 +142,13 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     pub fn cast_mut(&self) -> *mut T {
-        step!();
         if self.is_null() {
             panic!("{:#?} is null", self);
-            // return ptr;
         }
         self.mut_ptr
     }
 
     pub fn cast_const(&self) -> *const T {
-        step!();
         if self.is_null() {
             panic!("{:#?} is null", self);
         }
@@ -202,19 +156,16 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     pub fn inner_ref(&self) -> &'c T {
-        step!();
         self.incr_ref();
         unsafe { std::mem::transmute::<&T, &'c T>(&*self.const_ptr) }
     }
 
     pub fn inner_mut(&mut self) -> &'c mut T {
-        step!();
         self.incr_ref();
         unsafe { std::mem::transmute::<&mut T, &'c mut T>(&mut *self.mut_ptr) }
     }
 
     pub fn as_ref(&self) -> Option<&'c T> {
-        step!();
         if self.is_written() {
             Some(self.inner_ref())
         } else {
@@ -223,7 +174,6 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     pub fn as_mut(&mut self) -> Option<&'c mut T> {
-        step!();
         if self.is_written() {
             Some(self.inner_mut())
         } else {
@@ -232,23 +182,18 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     pub fn dealloc(&mut self, soft: bool) {
-        step!();
         if self.is_null() {
             return;
         }
-        // let mut up = self.meta_mut();
         if !soft && self.refs > 0 {
-            // step!("decr_ref {:#?}", self);
             self.decr_ref();
         } else {
-            // step!("free(ptr) {:#?}", self);
             self.free();
             self.reset();
         }
     }
 
     fn reset(&mut self) {
-        step!();
         self.mut_addr = 0;
         self.const_addr = 0;
         self.refs.reset();
@@ -257,7 +202,6 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     fn free(&mut self) {
-        step!();
         if !self.is_null() {
             let layout = Layout::new::<T>();
             let mut_ptr = self.mut_ptr;
@@ -268,22 +212,17 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             self.const_addr = 0;
             unsafe {
                 std::alloc::dealloc(mut_ptr as *mut u8, layout);
-                // todo!();
-                // step!("trying to dealloc const ptr");
-                // std::alloc::dealloc(const_ptr as *mut u8, layout);
             };
         }
     }
 
     pub fn from_ref<'r>(data: &'r T) -> UniquePointer<'c, T> {
-        step!();
         let up = UniquePointer::<'c, T>::null();
         up.write_ref(data);
         up
     }
 
     pub fn from_ref_mut<'r>(data: &'r mut T) -> UniquePointer<'c, T> {
-        step!();
         let up = UniquePointer::<T>::null();
         up.write_ref_mut(data);
         up
@@ -317,12 +256,10 @@ impl<T: Sized> UniquePointer<'_, T> {
 
     pub fn raw_addr_of_ref(ptr: &T) -> usize {
         std::ptr::from_ref(ptr).addr()
-        // (&raw const ptr).addr()
     }
 
     pub fn raw_addr_of_mut(mut ptr: &mut T) -> usize {
         std::ptr::from_mut(ptr).addr()
-        // (&raw mut ptr).addr()
     }
 }
 
@@ -337,7 +274,6 @@ impl<'c, T: 'c> UniquePointer<'c, T> {
 }
 #[allow(invalid_reference_casting)]
 impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
-    // private methods
     fn meta_mut_ptr(&self) -> *mut UniquePointer<'c, T> {
         let ptr = self as *const UniquePointer<'c, T>;
         unsafe {
@@ -387,8 +323,6 @@ impl<'c, T: 'c> DerefMut for UniquePointer<'c, T> {
 
 impl<'c, T: 'c> Drop for UniquePointer<'c, T> {
     fn drop(&mut self) {
-        // step!("drop {:#?}", self);
-        // self.dealloc(true);
     }
 }
 
@@ -425,11 +359,6 @@ impl<'c, T: 'c> Clone for UniquePointer<'c, T> {
         clone
     }
 }
-// impl<T: Display> Display for UniquePointer<'c, T> {
-//     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-//         write!(f, "{}", if self.is_null() { format!("{:#?}", self) } else {self.as_ref()})
-//     }
-// }
 
 impl<'c, T: 'c> Pointer for UniquePointer<'c, T> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {

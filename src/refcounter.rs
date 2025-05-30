@@ -106,11 +106,6 @@ impl Deref for RefCounter {
     }
 }
 
-// impl DerefMut for RefCounter {
-//     fn deref_mut(&mut self) -> &mut usize {
-//         self.inner_mut()
-//     }
-// }
 
 impl Drop for RefCounter {
     fn drop(&mut self) {

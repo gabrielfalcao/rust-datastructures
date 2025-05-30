@@ -12,7 +12,6 @@ macro_rules! cast_node_mut {
             node.incr_ref();
             node
         };
-        // $crate::step!("cast_node_mut of {} increased refs", &node);
         unsafe { std::mem::transmute::<&mut Node<$lt>, &$lt mut Node<$lt>>(node) }
     }};
     ($ptr:expr, $lt:lifetime, noincr ) => {{
@@ -20,7 +19,6 @@ macro_rules! cast_node_mut {
             let mut node = &mut *$ptr;
             node
         };
-        // $crate::step!("cast_node_mut {:#?}", &node);
         unsafe { std::mem::transmute::<&mut Node<$lt>, &$lt mut Node<$lt>>(node) }
     }};
 }
@@ -35,7 +33,6 @@ macro_rules! cast_node_ref {
             let mut node = & *$ptr;
             node
         };
-        // $crate::step!("cast_node_ref {:#?}", &node);
         unsafe { std::mem::transmute::<& Node<$lt>, &$lt Node<$lt>>(node) }
     }};
 }

@@ -296,7 +296,6 @@ impl<'c> Node<'c> {
         }
 
         if let Some(parent) = self.parent() {
-            /// node.parent is root but node.right is null, so successor is node.subtree_first()
             if parent.parent.is_null() {
                 return self.subtree_first();
             }
@@ -344,7 +343,6 @@ impl<'c> Node<'c> {
         }
 
         if let Some(parent) = self.parent() {
-            /// node.parent is root but node.right is null, so successor is node.subtree_first_mut()
             if parent.parent.is_null() {
                 return self.subtree_first_mut();
             }
@@ -465,19 +463,6 @@ impl<'c> Node<'c> {
     pub fn dealloc(&mut self) {
         if self.refs > 0 {
             self.decr_ref();
-            // if let Some(parent) = self.parent_mut() {
-            //     if let Some(node_left) = parent.left_mut() {
-            //         if node_left == self {
-            //             // step!("delete left of {:#?}", &parent);
-            //             parent.delete_left();
-            //         }
-            //     } else if let Some(node_right) = parent.right_mut() {
-            //         if node_right == self {
-            //             // step!("delete right of {:#?}", &parent);
-            //             parent.delete_right();
-            //         }
-            //     }
-            // }
         } else {
             if !self.parent.is_null() {
                 unsafe {
@@ -514,29 +499,21 @@ impl<'c> Node<'c> {
     }
 
     pub fn swap_item(&mut self, other: &mut Node<'c>) {
-        // step_test!("before self={} other={}", self, other);
         let addr = other.item.addr();
         other.item = other.item.with_addr(self.item.addr());
         self.item = self.item.with_addr(addr);
 
-        // let refs = other.refs;
-        // other.refs = self.refs;
-        // self.refs = refs;
-        // step_test!("after self={} other={}", self, other);
     }
 }
 
 pub fn subtree_delete<'c>(node: &mut Node<'c>) {
-    // step!("subtree delete node {:#?}", node);
     if node.leaf() {
         node.decr_ref();
-        // step!("deleting leaf node {:#?}", node);
         if node.parent.is_null() {
             unreachable!("leaf node {} should have a parent", node);
         }
         unsafe {
             let mut parent = cast_node_mut!(node.parent, noincr);
-            // parent.decr_ref();
             let delete_left = if let Some(parents_left_child) = parent.left() {
                 parents_left_child == node
             } else {
@@ -558,16 +535,13 @@ pub fn subtree_delete<'c>(node: &mut Node<'c>) {
     }
 }
 
-/// Node private methods
 impl<'c> Node<'c> {
     fn incr_ref(&mut self) {
         self.refs += 1;
-        // step!("reference incremented by 1 {}", format!("{:#?}", self));
         let mut node = self;
         while !node.parent.is_null() {
             unsafe {
                 node = cast_node_mut!(node.parent, noincr);
-                // step!("reference incremented by 1 {}", format!("{:#?}", node));
                 node.refs += 1;
             }
         }
@@ -575,13 +549,11 @@ impl<'c> Node<'c> {
 
     fn decr_ref(&mut self) {
         decr_ref_nonzero!(self);
-        // step!("reference decremented by 1 {}", format!("{:#?}", self));
         let mut node = self;
         while !node.parent.is_null() {
             unsafe {
                 node = cast_node_mut!(node.parent, noincr);
                 decr_ref_nonzero!(node);
-                // step!("reference decremented by 1 {}", format!("{:#?}", node));
             }
         }
     }
@@ -658,10 +630,6 @@ impl<'c> Clone for Node<'c> {
     fn clone(&self) -> Node<'c> {
         let mut node = Node::nil();
         node.refs = self.refs;
-        // node.item = self.item;
-        // node.parent = self.parent;
-        // node.left = self.left;
-        // node.right = self.right;
         unsafe {
             if !self.item.is_null() {
                 let item = internal::alloc::value();
@@ -687,21 +655,8 @@ impl<'c> Clone for Node<'c> {
         node
     }
 }
-// // impl<'c> Deref for Node<'c> {
-// //     type Target = Node<'c>;
 
-// //     fn deref(&self) -> &Node<'c> {
-// //         dbg!(&**self);
-// //         unsafe { (self as *mut Node<'c>).as_ref().unwrap() }
-// //     }
-// // }
 
-// impl<'c> DerefMut for Node<'c> {
-//     fn deref_mut(&mut self) -> &mut Node<'c> {
-//         dbg!(&mut **self);
-//         unsafe { (self as *mut Node<'c>).as_mut().unwrap() }
-//     }
-// }
 
 impl<'c> AsRef<Node<'c>> for Node<'c> {
     fn as_ref(&self) -> &'c Node<'c> {
@@ -727,7 +682,6 @@ impl<'c> std::fmt::Debug for Node<'c> {
                 [
                     crate::color::fg("Node@", 231),
                     format!("{:016x}", self.addr()),
-                    // crate::color::ptr_inv(self),
                     format!("[refs={}]", self.refs),
                     if self.item.is_null() {
                         color::fg("null", 196)
@@ -766,14 +720,6 @@ impl<'c> std::fmt::Debug for Node<'c> {
                                 self.left_value()
                                     .map(|left_value| color::fg(format!("{:#?}", left_value), 220))
                                     .unwrap_or_else(|| format!("empty"))
-                                //     self.left_value()
-                                //         .map(|left_value| {
-                                //             color::fg(format!("{:#?}", left_value), 220)
-                                //         })
-                                //         .unwrap_or_else(|| format!("empty")),
-                                //     crate::color::ptr_inv(self.left),
-                                // ]
-                                // .join("@")
                             },
                             if self.right.is_null() {
                                 color::fg("null", 196)
@@ -783,15 +729,6 @@ impl<'c> std::fmt::Debug for Node<'c> {
                                         color::fg(format!("{:#?}", right_value), 220)
                                     })
                                     .unwrap_or_else(|| format!("empty"))
-                                // [
-                                //     self.right_value()
-                                //         .map(|right_value| {
-                                //             color::fg(format!("{:#?}", right_value), 220)
-                                //         })
-                                //         .unwrap_or_else(|| format!("empty")),
-                                //     crate::color::ptr_inv(self.right),
-                                // ]
-                                // .join("@")
                             }
                         )
                     }
@@ -803,7 +740,6 @@ impl<'c> std::fmt::Debug for Node<'c> {
 }
 impl<'c> Drop for Node<'c> {
     fn drop(&mut self) {
-        // step!("drop {:#?}", &self);
         self.dealloc()
     }
 }
