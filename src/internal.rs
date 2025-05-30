@@ -32,7 +32,7 @@ pub(super) mod alloc {
     unsafe fn new<T>() -> *mut T {
         let layout = Layout::new::<T>();
         let ptr = unsafe {
-            let ptr = std::alloc::alloc(layout);
+            let ptr = std::alloc::alloc_zeroed(layout);
             if ptr.is_null() {
                 std::alloc::handle_alloc_error(layout);
             }

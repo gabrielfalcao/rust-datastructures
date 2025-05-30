@@ -41,16 +41,24 @@ pub fn wrap(color: usize) -> u8 {
     (if color > 0 { color % 255 } else { color }) as u8
 }
 
-pub fn addr<T: Sized + Debug>(t: &T) -> String {
+pub fn ref_addr<T: Sized>(t: &T) -> String {
+    let addr = std::ptr::from_ref(t);
+    ptr_inv(addr)
+}
+pub fn ref_addr_inv<T: Sized>(t: &T) -> String {
     let addr = std::ptr::from_ref(t);
     ptr(addr)
 }
-pub fn ptr_colors<T: Sized>(addr: *const T) -> (u8, u8) {
-    match addr.addr() {
-        0 => (255, 9),
-        8 => (16, 137),
-        addr => couple(addr),
-    }
+pub fn ref_mut_addr<T: Sized>(t: &mut T) -> String {
+    let addr = std::ptr::from_mut(t);
+    ptr_inv(addr)
+}
+pub fn ref_mut_addr_inv<T: Sized>(t: &mut T) -> String {
+    let addr = std::ptr::from_mut(t);
+    ptr(addr)
+}
+pub fn ptr_colors<T: Sized>(ptr: *const T) -> (u8, u8) {
+    addr_colors(ptr.addr())
 }
 pub fn ptr_repr<T>(
     ptr: *const T,
@@ -64,29 +72,14 @@ pub fn ptr_repr<T>(
     if ptr.is_null() {
         reset(bgfg("null", null_fg.into(), null_bg.into()))
     } else {
-        format!(
-            "{}{}{}",
-            reset(bgfg(format!("0x{:016x}", ptr.addr()), fg.into(), bg.into())),
-            bgfg(":", 231, 16),
-            if ptr.is_null() {
-                reset(bgfg("null", null_fg.into(), null_bg.into()))
-            } else {
-                reset(bgfg("non-null", nonnull_fg.into(), nonnull_bg.into()))
-            }
-        )
+        addr_repr(ptr.addr(), bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
     }
 }
 pub fn ptr<T>(ptr: *const T) -> String {
-    let (bg, fg) = ptr_colors(ptr);
-    let (null_bg, null_fg) = couple(9);
-    let (nonnull_bg, nonnull_fg) = couple(101);
-    ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
+    addr(ptr.addr())
 }
 pub fn ptr_inv<T>(ptr: *const T) -> String {
-    let (fg, bg) = ptr_colors(ptr);
-    let (null_fg, null_bg) = couple(9);
-    let (nonnull_fg, nonnull_bg) = couple(101);
-    ptr_repr(ptr, bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
+    addr_inv(ptr.addr())
 }
 
 pub fn node_ptr<'c>(ptr: *const crate::Node<'c>) -> String {
@@ -96,7 +89,59 @@ pub fn node_ptr<'c>(ptr: *const crate::Node<'c>) -> String {
         if let Some(node) = unsafe { ptr.as_ref() } {
             format!("{:#?}", node)
         } else {
-            format!("{:#?}", ptr)
+            let addr_str = format!("{:p}", ptr);
+            addr_str
+                .strip_prefix("0x")
+                .map(String::from)
+                .unwrap_or_else(|| addr_str.clone())
+                .strip_prefix('0')
+                .map(String::from)
+                .unwrap_or_else(|| addr_str.clone())
         }
     }
+}
+
+pub fn addr_colors(addr: usize) -> (u8, u8) {
+    match addr {
+        0 => (255, 9),
+        8 => (16, 137),
+        addr => couple(addr),
+    }
+}
+
+pub fn addr_repr(
+    addr: usize,
+    bg: u8,
+    fg: u8,
+    null_bg: u8,
+    null_fg: u8,
+    nonnull_bg: u8,
+    nonnull_fg: u8,
+) -> String {
+    if addr == 0 {
+        reset(bgfg("null", null_fg.into(), null_bg.into()))
+    } else {
+        format!(
+            "{}{}{}",
+            reset(bgfg(format!("0x{:016x}", addr), fg.into(), bg.into())),
+            bgfg(":", 231, 16),
+            if addr == 0 {
+                reset(bgfg("null", null_fg.into(), null_bg.into()))
+            } else {
+                reset(bgfg("non-null", nonnull_fg.into(), nonnull_bg.into()))
+            }
+        )
+    }
+}
+pub fn addr(addr: usize) -> String {
+    let (fg, bg) = addr_colors(addr);
+    let (null_fg, null_bg) = couple(9);
+    let (nonnull_fg, nonnull_bg) = couple(101);
+    addr_repr(addr, bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
+}
+pub fn addr_inv(addr: usize) -> String {
+    let (bg, fg) = addr_colors(addr);
+    let (null_bg, null_fg) = couple(9);
+    let (nonnull_bg, nonnull_fg) = couple(101);
+    addr_repr(addr, bg, fg, null_bg, null_fg, nonnull_bg, nonnull_fg)
 }

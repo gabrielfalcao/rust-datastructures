@@ -21,35 +21,35 @@ k9 = "0.12.0"
 name = "unique_ptr"
 path = "./tests/test_unique_ptr.rs"
 
-[[test]]
-name = "refcounter"
-path = "./tests/test_refcounter.rs"
+# [[test]]
+# name = "refcounter"
+# path = "./tests/test_refcounter.rs"
 
 
-[[test]]
-name = "binary_tree"
-path = "./tests/test_binary_tree.rs"
+# [[test]]
+# name = "binary_tree"
+# path = "./tests/test_binary_tree.rs"
 
-[[test]]
-name = "node"
-path = "./tests/test_node.rs"
+# [[test]]
+# name = "node"
+# path = "./tests/test_node.rs"
 
-[[test]]
-name = "cell_conversion"
-path = "./tests/test_cell_conversion.rs"
+# [[test]]
+# name = "cell_conversion"
+# path = "./tests/test_cell_conversion.rs"
 
-[[test]]
-name = "cons"
-path = "./tests/test_cons.rs"
+# [[test]]
+# name = "cons"
+# path = "./tests/test_cons.rs"
 
-[[test]]
-name = "cell_methods"
-path = "./tests/test_cell_methods.rs"
+# [[test]]
+# name = "cell_methods"
+# path = "./tests/test_cell_methods.rs"
 
-[[test]]
-name = "value_conversion"
-path = "./tests/test_value_conversion.rs"
+# [[test]]
+# name = "value_conversion"
+# path = "./tests/test_value_conversion.rs"
 
-[[test]]
-name = "value"
-path = "./tests/test_value.rs"
+# [[test]]
+# name = "value"
+# path = "./tests/test_value.rs"

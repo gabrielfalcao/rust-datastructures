@@ -9,7 +9,9 @@ use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::pin::Pin;
 use std::ptr::NonNull;
 
-use crate::{cast_node_mut, cast_node_ref, color, decr_ref_nonzero, internal, step, Value, step_test};
+use crate::{
+    cast_node_mut, cast_node_ref, color, decr_ref_nonzero, internal, step, step_test, Value,
+};
 
 pub struct Node<'c> {
     parent: *mut Node<'c>,
@@ -459,6 +461,7 @@ impl<'c> Node<'c> {
             self.parent = internal::null::node();
         }
     }
+
     pub fn dealloc(&mut self) {
         if self.refs > 0 {
             self.decr_ref();
@@ -509,6 +512,7 @@ impl<'c> Node<'c> {
             }
         }
     }
+
     pub fn swap_item(&mut self, other: &mut Node<'c>) {
         // step_test!("before self={} other={}", self, other);
         let addr = other.item.addr();

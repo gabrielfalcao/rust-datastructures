@@ -81,8 +81,11 @@ macro_rules! step {
                 bg.into(),
                 fg.into(),
             ),
-            if text.is_empty() { String::new() } else { format!(" {}", text) }
-
+            crate::color::ansi(
+                if text.is_empty() { String::new() } else { format!(" {}", text) },
+                bg.into(),
+                fg.into(),
+            )
         );
     }};
     () => {{
