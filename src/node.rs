@@ -52,19 +52,11 @@ impl<'c> Node<'c> {
     }
 
     pub fn parent(&self) -> Option<&'c Node<'c>> {
-        if self.parent.is_null() {
-            None
-        } else {
-            unsafe { self.parent.as_ref() }
-        }
+        self.parent.as_ref()
     }
 
     pub fn parent_mut(&mut self) -> Option<&'c mut Node<'c>> {
-        if self.parent.is_null() {
-            None
-        } else {
-            unsafe { self.parent.as_mut() }
-        }
+        self.parent.as_mut()
     }
 
     pub fn item(&self) -> Value<'c> {
@@ -106,13 +98,19 @@ impl<'c> Node<'c> {
     }
 
     pub fn set_left(&mut self, left: &mut Node<'c>) {
-        let left_addr_in = (left as *mut Node<'c>).addr();
-
         self.left.write_ref_mut(left);
-        left.parent.dealloc(true);
-        self.incr_ref();
+        //left.parent.dealloc(true);
+        left.parent.write_ref_mut(self);
         left.incr_ref();
-        let left_addr_out = (left as *mut Node<'c>).addr();
+        self.incr_ref();
+    }
+
+    pub fn set_right(&mut self, right: &mut Node<'c>) {
+        self.right.write_ref_mut(right);
+        //right.parent.dealloc(true);
+        right.parent.write_ref_mut(self);
+        right.incr_ref();
+        self.incr_ref();
     }
 
     pub fn delete_left(&mut self) {
@@ -125,25 +123,11 @@ impl<'c> Node<'c> {
     }
 
     pub fn left(&self) -> Option<&'c Node<'c>> {
-        if self.left.is_null() {
-            None
-        } else {
-            unsafe {
-                if let Some(left) = self.left.as_ref() {
-                    Some(left)
-                } else {
-                    None
-                }
-            }
-        }
+        self.left.as_ref()
     }
 
     pub fn left_mut(&mut self) -> Option<&'c mut Node<'c>> {
-        if self.left.is_null() {
-            None
-        } else {
-            unsafe { self.left.as_mut() }
-        }
+        self.left.as_mut()
     }
 
     pub fn left_value(&self) -> Option<Value<'c>> {
@@ -152,13 +136,6 @@ impl<'c> Node<'c> {
         } else {
             None
         }
-    }
-
-    pub fn set_right(&mut self, right: &mut Node<'c>) {
-        self.right.write_ref_mut(right);
-        right.parent.write_ref_mut(self);
-        self.incr_ref();
-        right.incr_ref();
     }
 
     pub fn delete_right(&mut self) {
@@ -171,25 +148,11 @@ impl<'c> Node<'c> {
     }
 
     pub fn right(&self) -> Option<&'c Node<'c>> {
-        if self.right.is_null() {
-            None
-        } else {
-            unsafe {
-                if let Some(right) = self.right.as_ref() {
-                    Some(right)
-                } else {
-                    None
-                }
-            }
-        }
+        self.right.as_ref()
     }
 
     pub fn right_mut(&mut self) -> Option<&'c mut Node<'c>> {
-        if self.right.is_null() {
-            None
-        } else {
-            unsafe { self.right.as_mut() }
-        }
+        self.right.as_mut()
     }
 
     pub fn right_value(&self) -> Option<Value<'c>> {

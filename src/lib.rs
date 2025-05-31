@@ -1,4 +1,5 @@
 #![allow(unused)]
+#![feature(intra_doc_pointers)]
 pub mod traits;
 pub use traits::ListValue;
 pub mod cons;
@@ -12,7 +13,7 @@ pub use node::{subtree_delete, Node};
 pub mod color;
 pub mod macros;
 pub mod unique_pointer;
-pub use unique_pointer::{UniquePointer};
+pub use unique_pointer::UniquePointer;
 pub mod refcounter;
 pub use refcounter::RefCounter;
 pub(crate) mod internal;

@@ -2,6 +2,15 @@ use std::alloc::Layout;
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::marker::PhantomData;
 use std::ops::{AddAssign, Deref, DerefMut, SubAssign};
+
+/// `RefCounter` is a data-structure designed specifically for
+/// internal use in [`UniquePointer`] allowing reference counts to be
+/// shared across clones of [`UniquePointer`].
+///
+/// [`RefCounter`] uses relatively obscure rust techniques under
+/// the hood to allow writing in non-mut references in strategic
+/// occasions such as incrementing its reference count within its
+/// [`Clone`] implementation.
 pub struct RefCounter {
     data: *mut usize,
 }
@@ -33,6 +42,15 @@ impl RefCounter {
         let data = self.read();
         if data >= by {
             self.write(data - by);
+        }
+    }
+
+    pub fn read(&self) -> usize {
+        if self.data.is_null() {
+            0
+        } else {
+            let mut ptr = self.cast_const();
+            unsafe { ptr.read() }
         }
     }
 
@@ -71,20 +89,11 @@ impl RefCounter {
         self.data.cast_const()
     }
 
-    pub fn read(&self) -> usize {
-        if self.data.is_null() {
-            0
-        } else {
-            let mut ptr = self.cast_const();
-            unsafe { ptr.read() }
-        }
-    }
-
     fn inner_ref<'c>(&self) -> &'c usize {
         if self.data.is_null() {
             &0
         } else {
-        let ptr = self.cast_const();
+            let ptr = self.cast_const();
             unsafe { std::mem::transmute::<&usize, &'c usize>(&*ptr) }
         }
     }
@@ -105,7 +114,6 @@ impl Deref for RefCounter {
         self.inner_ref()
     }
 }
-
 
 impl Drop for RefCounter {
     fn drop(&mut self) {
@@ -208,3 +216,59 @@ impl PartialEq for RefCounter {
 }
 
 impl Eq for RefCounter {}
+
+#[cfg(test)]
+mod tests {
+    use k9::assert_equal;
+
+    use crate::*;
+    #[test]
+    fn test_refcounter_incr_decr_read() {
+        let mut counter = RefCounter::new();
+        assert_equal!(counter.read(), 0);
+        counter.incr();
+        assert_equal!(counter.read(), 1);
+        counter.incr();
+        assert_equal!(counter.read(), 2);
+        {
+            let mut clone = counter.clone();
+            clone.incr();
+            assert_equal!(counter.read(), 3);
+            assert_equal!(clone.read(), 3);
+        }
+        assert_equal!(counter.read(), 3);
+        counter.decr();
+        assert_equal!(counter.read(), 2);
+        counter.decr();
+        assert_equal!(counter.read(), 1);
+        counter.decr();
+        assert_equal!(counter.read(), 0);
+        counter.decr();
+        assert_equal!(counter.read(), 0);
+    }
+    #[test]
+    fn test_refcounter_deref() {
+        let mut counter = RefCounter::new();
+        assert_equal!(counter.read(), 0);
+        counter.incr();
+        assert_equal!(counter.read(), 1);
+        counter.incr();
+        assert_equal!(counter.read(), 2);
+        let refs: usize = *counter;
+        assert_equal!(refs, 2);
+    }
+    #[test]
+    fn test_refcounter_add_assign() {
+        let mut counter = RefCounter::new();
+        assert_equal!(counter.read(), 0);
+        counter += 2;
+        assert_equal!(counter.read(), 2);
+        counter -= 1;
+        assert_equal!(counter.read(), 1);
+        counter -= 1;
+        assert_equal!(counter.read(), 0);
+        counter += 1;
+        let refs: usize = *counter;
+        assert_equal!(refs, 1);
+    }
+}

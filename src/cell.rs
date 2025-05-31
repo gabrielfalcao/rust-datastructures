@@ -10,6 +10,7 @@ use std::ptr::NonNull;
 
 use crate::{car, cdr, color, cons, internal, step, Value};
 
+/// Rust implementation of lisp's cons cell.
 pub struct Cell<'c> {
     head: *mut Value<'c>,
     tail: *mut Cell<'c>,

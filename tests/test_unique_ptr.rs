@@ -199,6 +199,7 @@ fn test_unique_pointer_inner_mut() {
         assert_equal!(value, &mut Value::from("string"));
         assert_equal!(data.value.refs(), 3);
     }
+    assert_equal!(data.value.refs(), 3);
     {
         let value = &*data.value;
         assert_equal!(value, &Value::from("string"));
