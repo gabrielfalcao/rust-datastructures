@@ -48,7 +48,6 @@ impl<'c> Node<'c> {
             item.write_volatile(value);
             node.item = item;
         }
-        node.incr_ref();
         node
     }
 

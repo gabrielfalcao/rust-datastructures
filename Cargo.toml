@@ -19,6 +19,14 @@ k9 = "0.12.0"
 
 
 [[test]]
+name = "binary_tree_with_references"
+path = "./tests/test_binary_tree_refs.rs"
+
+[[test]]
+name = "binary_tree"
+path = "./tests/test_binary_tree.rs"
+
+[[test]]
 name = "node"
 path = "./tests/test_node.rs"
 
@@ -29,16 +37,6 @@ path = "./tests/test_unique_ptr.rs"
 [[test]]
 name = "refcounter"
 path = "./tests/test_refcounter.rs"
-
-
-# [[test]]
-# name = "binary_tree"
-# path = "./tests/test_binary_tree.rs"
-
-# [[test]]
-# name = "binary_tree_with_references"
-# path = "./tests/test_binary_tree_refs.rs"
-
 
 [[test]]
 name = "cell_conversion"
