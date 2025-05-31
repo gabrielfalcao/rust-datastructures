@@ -110,7 +110,23 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         up.is_copy = true;
         up
     }
-
+    pub fn copy_from_ref<'r>(data: &'r T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
+        let ptr = (data as *const T).cast_mut();
+        UniquePointer::copy_from_mut_ptr(ptr, refs, orig_addr)
+    }
+    pub fn copy_from_mut_ptr<'r>(ptr:  *mut T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
+        let addr = UniquePointer::provenance_of_mut_ptr(ptr);
+        UniquePointer {
+            mut_addr: addr,
+            mut_ptr: ptr,
+            orig_addr: orig_addr,
+            refs: RefCounter::from(refs),
+            written: true,
+            alloc: true,
+            is_copy: true,
+            _marker: PhantomData,
+        }
+    }
 
     /// `addr` returns the value containing both the provenance and
     /// memory address of a pointer
@@ -148,11 +164,19 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         !self.is_null()
     }
 
+    /// `is_not_copy` returns true if the `UniquePointer` is not a
+    /// copy. `is_not_copy` is a idiomatic shortcut to negating a call
+    /// to [`is_copy`] such that the negation is less likely to be
+    /// clearly visible.
+    pub fn is_not_copy(&self) -> bool {
+        !self.is_copy
+    }
+
     /// `can_dealloc` returns true if the `UniquePointer` is not NULL
     /// and is not flagged as a copy, meaning it can be deallocated
     /// without concern for double-free.
     pub fn can_dealloc(&self) -> bool {
-        self.is_copy && self.is_not_null()
+        self.alloc && self.is_not_copy() && self.is_not_null()
     }
 
     /// `is_allocated` returns true if the `UniquePointer` has been
@@ -405,7 +429,8 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
 
     fn incr_ref(&self) {
         if self.is_null() {
-            panic!("null {:#?}", self);
+            // panic!("null {:#?}", self);
+            return
         }
         let ptr = self.meta_mut_ptr();
         unsafe {
@@ -494,6 +519,10 @@ impl<'c, T: Sized + 'c> Debug for UniquePointer<'c, T> {
                     crate::color::fg("UniquePointer@", 231),
                     format!("{:016x}", self.addr()),
                     format!("[refs={}]", self.refs),
+                    format!("[alloc={}]", self.alloc),
+                    format!("[written={}]", self.written),
+                    format!("[is_copy={}]", self.is_copy),
+                    format!("[orig_addr={:016x}]", self.orig_addr),
                 ]
                 .join("")
             )

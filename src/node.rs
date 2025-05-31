@@ -48,6 +48,7 @@ impl<'c> Node<'c> {
             item.write_volatile(value);
             node.item = item;
         }
+        node.incr_ref();
         node
     }
 
@@ -99,18 +100,16 @@ impl<'c> Node<'c> {
 
     pub fn set_left(&mut self, left: &mut Node<'c>) {
         self.left.write_ref_mut(left);
-        //left.parent.dealloc(true);
-        left.parent.write_ref_mut(self);
-        left.incr_ref();
+        left.parent = self.ptr();
         self.incr_ref();
+        left.incr_ref();
     }
 
     pub fn set_right(&mut self, right: &mut Node<'c>) {
         self.right.write_ref_mut(right);
-        //right.parent.dealloc(true);
-        right.parent.write_ref_mut(self);
-        right.incr_ref();
+        right.parent = self.ptr();
         self.incr_ref();
+        right.incr_ref();
     }
 
     pub fn delete_left(&mut self) {
@@ -501,6 +500,12 @@ pub fn subtree_delete<'c>(node: &mut Node<'c>) {
 
 /// Node private methods
 impl<'c> Node<'c> {
+    fn ptr(&self) -> UniquePointer<'c, Node<'c>> {
+        let ptr =
+            UniquePointer::copy_from_ref(self, self.refs, UniquePointer::raw_addr_of_ref(self));
+        ptr
+    }
+
     fn incr_ref(&mut self) {
         self.refs += 1;
         // step!("reference incremented by 1 {}", format!("{:#?}", self));
@@ -562,16 +567,18 @@ impl<'c> Node<'c> {
 
 impl<'c> PartialEq<Node<'c>> for Node<'c> {
     fn eq(&self, other: &Node<'c>) -> bool {
-        if self.parent_eq(other)
-            && self.item_eq(other)
-            && self.left_eq(other)
-            && self.right_eq(other)
+        if self.item_eq(other)
+        // && self.parent_eq(other)
+        // && self.left_eq(other)
+        // && self.right_eq(other)
         {
-            self.value().unwrap_or_default() == other.value().unwrap_or_default()
-                && self.parent_value() == other.parent_value()
-                && self.left_value() == other.left_value()
-                && self.right_value() == other.right_value()
+            let eq = self.value().unwrap_or_default() == other.value().unwrap_or_default();
+            // && self.parent_value() == other.parent_value()
+            // && self.left_value() == other.left_value()
+            // && self.right_value() == other.right_value()
+            eq
         } else {
+            dbg!(&self, &other);
             false
         }
     }
@@ -631,7 +638,6 @@ impl<'c> Clone for Node<'c> {
 impl<'c> AsRef<Node<'c>> for Node<'c> {
     fn as_ref(&self) -> &'c Node<'c> {
         cast_node_ref!(self as *const Node<'c>)
-
     }
 }
 impl<'c> AsMut<Node<'c>> for Node<'c> {

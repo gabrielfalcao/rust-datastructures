@@ -26,7 +26,6 @@ fn test_node_nil() {
 #[test]
 fn test_node_new() {
     let node = Node::new(Value::from("value"));
-    dbg!(&node);
     assert_equal!(node.is_nil(), false);
     assert_equal!(node.parent(), None);
     assert_equal!(node.left(), None);
@@ -59,6 +58,8 @@ fn test_set_left() {
     assert_equal!(node.value(), Some(Value::from("value")));
     assert_equal!(node.parent(), None);
     assert_equal!(node.left_value(), Some(Value::from("left")));
+    assert_equal!(node.refs(), 3);
+    assert_equal!(left.refs(), 2);
     assert_equal!(node.left(), Some(&left));
     assert_equal!(node.right_value(), None);
     assert_equal!(node.right(), None);
@@ -117,54 +118,54 @@ fn test_set_right() {
 
 
 
-// #[test]
-// fn test_clone_null() {
-//     let node = Node::nil();
-//     assert_equal!(node.clone(), Node::nil());
-// }
+#[test]
+fn test_clone_null() {
+    let node = Node::nil();
+    assert_equal!(node.clone(), Node::nil());
+}
 
-// #[test]
-// fn test_clone_non_null() {
-//     let mut node = Node::new(Value::from("value"));
-//     let mut left = Node::new(Value::from("left"));
-//     let mut right = Node::new(Value::from("right"));
+#[test]
+fn test_clone_non_null() {
+    let mut node = Node::new(Value::from("value"));
+    let mut left = Node::new(Value::from("left"));
+    let mut right = Node::new(Value::from("right"));
 
-//     node.set_left(&mut left);
-//     node.set_right(&mut right);
+    node.set_left(&mut left);
+    node.set_right(&mut right);
 
 
-//     assert_equal!(node.parent(), None);
-//     assert_equal!(node.is_nil(), false);
-//     assert_equal!(node.left(), Some(&left));
-//     assert_equal!(node.right(), Some(&right));
-//     assert_equal!(node.left_value(), Some(Value::from("left")));
-//     assert_equal!(node.right_value(), Some(Value::from("right")));
+    assert_equal!(node.parent(), None);
+    assert_equal!(node.is_nil(), false);
+    assert_equal!(node.left(), Some(&left));
+    assert_equal!(node.right(), Some(&right));
+    assert_equal!(node.left_value(), Some(Value::from("left")));
+    assert_equal!(node.right_value(), Some(Value::from("right")));
 
-//     let expected = {
-//         let mut node = Node::new(Value::from("value"));
-//         let mut left = Node::new(Value::from("left"));
-//         let mut right = Node::new(Value::from("right"));
+    let expected = {
+        let mut node = Node::new(Value::from("value"));
+        let mut left = Node::new(Value::from("left"));
+        let mut right = Node::new(Value::from("right"));
 
-//         node.set_left(&mut left);
-//         node.set_right(&mut right);
-//         node
-//     };
-//     assert_equal!(node, expected);
-//     let expected = {
-//         let mut node = Node::new(Value::from("value"));
-//         let mut left = Node::new(Value::from("left"));
-//         node.set_left(&mut left);
-//         left
-//     };
-//     assert_equal!(left, expected);
-//     let expected = {
-//         let mut node = Node::new(Value::from("value"));
-//         let mut right = Node::new(Value::from("right"));
-//         node.set_right(&mut right);
-//         right
-//     };
-//     assert_equal!(right, expected);
+        node.set_left(&mut left);
+        node.set_right(&mut right);
+        node
+    };
+    assert_equal!(node, expected);
+    let expected = {
+        let mut node = Node::new(Value::from("value"));
+        let mut left = Node::new(Value::from("left"));
+        node.set_left(&mut left);
+        left
+    };
+    assert_equal!(left, expected);
+    let expected = {
+        let mut node = Node::new(Value::from("value"));
+        let mut right = Node::new(Value::from("right"));
+        node.set_right(&mut right);
+        right
+    };
+    assert_equal!(right, expected);
 
-//     let mut tree = node.clone();
-//     assert_equal!(node, tree);
-// }
+    let mut tree = node.clone();
+    assert_equal!(node, tree);
+}

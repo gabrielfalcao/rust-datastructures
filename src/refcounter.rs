@@ -106,7 +106,13 @@ impl RefCounter {
         unsafe { std::mem::transmute::<&mut usize, &'c mut usize>(&mut *ptr) }
     }
 }
-
+impl From<usize> for RefCounter {
+    fn from(refs: usize) -> RefCounter {
+        let mut ref_counter = RefCounter::new();
+        ref_counter.write(refs);
+        ref_counter
+    }
+}
 impl Deref for RefCounter {
     type Target = usize;
 
