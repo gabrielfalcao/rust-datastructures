@@ -13,6 +13,11 @@ pub fn tree<'t>() -> Node<'t> {
     assert_equal!(node_c.value(), Some(Value::from("C")));
     assert_equal!(node_d.value(), Some(Value::from("D")));
 
+    assert_equal!(node_a.refs(), 1);
+    assert_equal!(node_b.refs(), 1);
+    assert_equal!(node_c.refs(), 1);
+    assert_equal!(node_d.refs(), 1);
+
     node_a.set_left(&mut node_b);
     node_a.set_right(&mut node_c);
     node_b.set_left(&mut node_d);
@@ -25,13 +30,14 @@ pub fn tree<'t>() -> Node<'t> {
     assert_equal!(node_c.parent_value(), node_a.value());
     assert_equal!(node_d.parent_value(), node_b.value());
 
-    unsafe { std::mem::transmute::<Node, Node<'t>>(node_a) }
+    node_a
 }
 #[test]
 fn test_tree_initial_state() {
     let mut node_a = tree();
 
     assert_equal!(node_a.value(), Some(Value::from("A")));
+    assert_equal!(node_a.right_value(), Some(Value::from("C")));
     assert_equal!(node_a.left_value(), Some(Value::from("B")));
 }
 

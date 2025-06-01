@@ -11,7 +11,7 @@ use std::ptr::NonNull;
 
 use crate::{
     cast_node_mut, cast_node_ref, color, decr_ref_nonzero, internal, step, step_test, RefCounter,
-    UniquePointer, Value,
+    UniquePointer, Value, warn, warn_inv
 };
 
 pub struct Node<'c> {
@@ -43,7 +43,9 @@ impl<'c> Node<'c> {
 
     pub fn new(value: Value<'c>) -> Node<'c> {
         let mut node = Node::nil();
+        // warn!("writing {:#?} into {}", &value, color::reset(format!("{:#?}",&node)));
         node.item.write(value);
+        // warn_inv!("wrote: {:#?}", &node);
         node
     }
 
@@ -94,12 +96,10 @@ impl<'c> Node<'c> {
     }
 
     pub fn set_left(&mut self, left: &mut Node<'c>) {
-        self.left.write_ref_mut(left);
         left.parent = self.ptr();
+        self.left.write_ref_mut(left);
         left.incr_ref();
-        // step_test!("incrementing refs of {:#?}", &left);
         self.incr_ref();
-        // step_test!("incrementing refs of {:#?}", &self);
     }
 
     pub fn set_right(&mut self, right: &mut Node<'c>) {
@@ -119,10 +119,13 @@ impl<'c> Node<'c> {
     }
 
     pub fn left(&self) -> Option<&'c Node<'c>> {
-        self.left.as_ref()
+        let left = self.left.as_ref();
+        dbg!(&left);
+        left
     }
 
     pub fn left_mut(&mut self) -> Option<&'c mut Node<'c>> {
+        dbg!(&self.left);
         self.left.as_mut()
     }
 
@@ -508,7 +511,6 @@ impl<'c> Node<'c> {
             unsafe {
                 node = node.parent.peek_mut();
                 // step!("reference incremented by 1 {}", format!("{:#?}", node));
-                dbg!(&node, &node.refs);
                 node.refs += 1;
             }
         }
@@ -742,6 +744,6 @@ impl<'c> std::fmt::Debug for Node<'c> {
 impl<'c> Drop for Node<'c> {
     fn drop(&mut self) {
         // step!("drop {:#?}", &self);
-        self.dealloc()
+        // self.dealloc()
     }
 }

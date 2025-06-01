@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-use crate::{color, decr_ref_nonzero, internal, step, RefCounter};
+use crate::{color, decr_ref_nonzero, internal, step, warn, RefCounter};
 
 /// `UniquePointer` is an experimental data structure that makes
 /// extensive use of unsafe rust to provide a shared pointer
@@ -136,7 +136,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     pub fn set_as_copy_of_mut_ptr<'r>(&mut self, ptr: *mut T, refs: usize, orig_addr: usize) {
-        self.dealloc(false);
+        // self.dealloc(true);
         let addr = UniquePointer::provenance_of_mut_ptr(ptr);
         self.mut_addr = addr;
         self.mut_ptr = ptr;
@@ -214,6 +214,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     /// `alloc` allocates memory in a null `UniquePointer`
     pub fn alloc(&mut self) {
         if self.is_allocated() {
+            warn!("{:#?} is already allocated, force-deallocating now", &self);
             self.dealloc(false);
             return;
         }
@@ -308,7 +309,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     /// [`UniquePointer`] and increments reference
     pub fn inner_ref(&self) -> &'c T {
         self.incr_ref();
-         // step!("{:#?}", self);
+        // step!("{:#?}", self);
         self.peek_ref()
     }
 
@@ -316,16 +317,14 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     /// [`UniquePointer`] and increments reference
     pub fn inner_mut(&mut self) -> &'c mut T {
         self.incr_ref();
-         // step!("{:#?}", self);
+        // step!("{:#?}", self);
         self.peek_mut()
     }
 
     /// `as_ref` is a compatibility layer to the [`AsRef`] implementation in raw pointers
     pub fn as_ref(&self) -> Option<&'c T> {
         self.incr_ref();
-        unsafe {
-            self.mut_ptr.as_ref()
-        }
+        unsafe { self.mut_ptr.as_ref() }
         //  // step!("{:#?}", self);
         // if self.is_written() {
         //     Some(self.inner_ref())
@@ -337,9 +336,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     /// `as_mut` is a compatibility layer to the [`AsMut`] implementation in raw pointers
     pub fn as_mut(&mut self) -> Option<&'c mut T> {
         self.incr_ref();
-        unsafe {
-            self.mut_ptr.as_mut()
-        }
+        unsafe { self.mut_ptr.as_mut() }
         //  // step!("{:#?}", self);
         // if self.is_written() {
         //     Some(self.inner_mut())
@@ -386,6 +383,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     fn set_mut_ptr(&mut self, ptr: *mut T, dealloc: bool) {
         if ptr.is_null() {
             if dealloc && self.can_dealloc() {
+                warn!("deallocating {:#?}", self);
                 let layout = Layout::new::<T>();
                 let mut_ptr = self.mut_ptr;
                 unsafe {
@@ -510,12 +508,14 @@ impl<'c, T: Sized + 'c> Deref for UniquePointer<'c, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
+        self.incr_ref();
         self.inner_ref()
     }
 }
 
 impl<'c, T: Sized + 'c> DerefMut for UniquePointer<'c, T> {
     fn deref_mut(&mut self) -> &mut T {
+        self.incr_ref();
         self.inner_mut()
     }
 }
@@ -571,7 +571,7 @@ impl<'c, T: Sized + 'c> Debug for UniquePointer<'c, T> {
             "{}",
             crate::color::reset(
                 [
-                    crate::color::fg("UniquePointer@", 231),
+                    crate::color::fg("UniquePointer@", 237),
                     format!("{:016x}", self.addr()),
                     format!("[refs={}]", self.refs),
                     format!("[alloc={}]", self.alloc),

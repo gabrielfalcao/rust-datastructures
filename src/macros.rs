@@ -145,3 +145,69 @@ macro_rules! location {
         format!("{}:{}:{}", file!(), $crate::function_name!(), line!(),)
     };
 }
+
+
+
+
+#[macro_export]
+macro_rules! warn {
+    ($text:literal) => {{
+        $crate::warn!(format!("{}", $text))
+    }};
+    ($text:literal, $( $arg:expr ),* ) => {{
+        $crate::warn!(format_args!($text, $($arg,)*))
+    }};
+    ($text:expr) => {{
+        let bg = 178usize;
+        let fg = 16usize;
+        let text = $text.to_string();
+        eprintln!(
+            "{} {}",
+            crate::color::ansi(
+                $crate::location!(),
+                fg.into(),
+                bg.into(),
+            ),
+            crate::color::ansi(
+                if text.is_empty() { String::new() } else { format!("{}", text) },
+                bg.into(),
+                fg.into(),
+            )
+        );
+    }};
+    () => {{
+        $crate::warn!("")
+    }};
+}
+
+
+#[macro_export]
+macro_rules! warn_inv {
+    ($text:literal) => {{
+        $crate::warn_inv!(format!("{}", $text))
+    }};
+    ($text:literal, $( $arg:expr ),* ) => {{
+        $crate::warn_inv!(format_args!($text, $($arg,)*))
+    }};
+    ($text:expr) => {{
+        let bg = 178usize;
+        let fg = 16usize;
+        let text = $text.to_string();
+        eprintln!(
+            "{} {}",
+            crate::color::ansi(
+                $crate::location!(),
+                bg.into(),
+                fg.into(),
+            ),
+            crate::color::ansi(
+                if text.is_empty() { String::new() } else { format!("{}", text) },
+                fg.into(),
+                bg.into(),
+            )
+        );
+    }};
+    () => {{
+        $crate::warn_inv!("")
+    }};
+}

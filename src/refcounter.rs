@@ -16,10 +16,15 @@ pub struct RefCounter {
 }
 
 impl RefCounter {
-    pub fn new() -> RefCounter {
+    pub fn null() -> RefCounter {
         RefCounter {
             data: std::ptr::null_mut::<usize>(),
         }
+    }
+    pub fn new() -> RefCounter {
+        let mut ref_counter = RefCounter::null();
+        ref_counter.incr();
+        ref_counter
     }
 
     pub fn reset(&mut self) {
