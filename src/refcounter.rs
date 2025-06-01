@@ -136,6 +136,7 @@ impl Clone for RefCounter {
         clone
     }
 }
+
 impl std::fmt::Debug for RefCounter {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(

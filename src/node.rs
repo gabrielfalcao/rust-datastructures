@@ -10,15 +10,15 @@ use std::pin::Pin;
 use std::ptr::NonNull;
 
 use crate::{
-    cast_node_mut, cast_node_ref, color, decr_ref_nonzero, internal, step, step_test,
-    UniquePointer, Value, RefCounter
+    cast_node_mut, cast_node_ref, color, decr_ref_nonzero, internal, step, step_test, RefCounter,
+    UniquePointer, Value,
 };
 
 pub struct Node<'c> {
     parent: UniquePointer<'c, Node<'c>>,
     left: UniquePointer<'c, Node<'c>>,
     right: UniquePointer<'c, Node<'c>>,
-    item: *mut Value<'c>,
+    item: UniquePointer<'c, Value<'c>>,
     refs: RefCounter,
 }
 
@@ -28,7 +28,7 @@ impl<'c> Node<'c> {
             parent: UniquePointer::<'c, Node<'c>>::null(),
             left: UniquePointer::<'c, Node<'c>>::null(),
             right: UniquePointer::<'c, Node<'c>>::null(),
-            item: internal::null::value(),
+            item: UniquePointer::<'c, Value<'c>>::null(),
             refs: RefCounter::new(),
         }
     }
@@ -43,11 +43,7 @@ impl<'c> Node<'c> {
 
     pub fn new(value: Value<'c>) -> Node<'c> {
         let mut node = Node::nil();
-        unsafe {
-            let item = internal::alloc::value();
-            item.write_volatile(value);
-            node.item = item;
-        }
+        node.item.write(value);
         node
     }
 
@@ -98,17 +94,19 @@ impl<'c> Node<'c> {
     }
 
     pub fn set_left(&mut self, left: &mut Node<'c>) {
-        left.parent = self.ptr();
         self.left.write_ref_mut(left);
-        self.incr_ref();
+        left.parent = self.ptr();
         left.incr_ref();
+        // step_test!("incrementing refs of {:#?}", &left);
+        self.incr_ref();
+        // step_test!("incrementing refs of {:#?}", &self);
     }
 
     pub fn set_right(&mut self, right: &mut Node<'c>) {
         right.parent = self.ptr();
         self.right.write_ref_mut(right);
-        self.incr_ref();
         right.incr_ref();
+        self.incr_ref();
     }
 
     pub fn delete_left(&mut self) {
@@ -162,13 +160,13 @@ impl<'c> Node<'c> {
     }
 
     pub fn height(&self) -> usize {
-        let mut node = self;
-        dbg!(&node);
+        let mut node = &self.ptr();
+        dbg!(&node, node.peek_ref(), &node.peek_ref().left);
         let mut vertices = 0;
 
-        while !node.left.is_null() {
-            dbg!(&node);
-            node = node.left.inner_ref();
+        while !node.peek_ref().left.is_null() {
+            dbg!(&node, node.peek_ref());
+            node = &node.peek_ref().left;
             vertices += 1;
         }
         vertices
@@ -443,19 +441,16 @@ impl<'c> Node<'c> {
                 }
             }
             if !self.item.is_null() {
-                unsafe {
-                    internal::dealloc::value(self.item);
-                    self.item = internal::null::value();
-                }
+                self.item.dealloc(true);
             }
         }
     }
 
     pub fn swap_item(&mut self, other: &mut Node<'c>) {
         // step_test!("before self={} other={}", self, other);
-        let addr = other.item.addr();
-        other.item = other.item.with_addr(self.item.addr());
-        self.item = self.item.with_addr(addr);
+        let item = other.item.clone();
+        other.item.write_ref(self.item.peek_ref());
+        self.item.write_ref(item.peek_ref())
 
         // let refs = other.refs;
         // other.refs = self.refs;
@@ -511,8 +506,9 @@ impl<'c> Node<'c> {
         let mut node = self;
         while !node.parent.is_null() {
             unsafe {
-                node = node.parent.inner_mut();
+                node = node.parent.peek_mut();
                 // step!("reference incremented by 1 {}", format!("{:#?}", node));
+                dbg!(&node, &node.refs);
                 node.refs += 1;
             }
         }
@@ -605,16 +601,26 @@ impl<'c> Clone for Node<'c> {
     fn clone(&self) -> Node<'c> {
         let mut node = Node::nil();
         node.refs = self.refs.clone();
-        node.parent.point_to_mut_ptr(self.parent.cast_mut(), *self.parent.refs, self.parent.orig_addr());
-        node.left.point_to_mut_ptr(self.left.cast_mut(), *self.left.refs, self.left.orig_addr());
-        node.right.point_to_mut_ptr(self.right.cast_mut(), *self.right.refs, self.right.orig_addr());
-        node.incr_ref();
-        unsafe {
-            if !self.item.is_null() {
-                let item = internal::alloc::value();
-                item.write_volatile(self.item.read_volatile());
-                node.item = item;
-            }
+        if self.parent.is_not_null() {
+            node.parent = self.parent.clone();
+            // #[rustfmt::skip]
+            // node.parent.set_as_copy_of_mut_ptr(self.parent.cast_mut(), *self.parent.peek_ref().refs, self.parent.orig_addr());
+        }
+        if self.left.is_not_null() {
+            node.left = self.left.clone();
+            // #[rustfmt::skip]
+            // node.left.set_as_copy_of_mut_ptr(self.left.cast_mut(), self.left.refs(), self.left.orig_addr());
+        }
+        if self.right.is_not_null() {
+            node.right = self.right.clone();
+            // #[rustfmt::skip]
+            // node.right.set_as_copy_of_mut_ptr(self.right.cast_mut(), self.right.refs(), self.right.orig_addr());
+        }
+        // node.incr_ref();
+        if self.item.is_not_null() {
+            node.item = self.item.clone();
+            // #[rustfmt::skip]
+            // node.item.set_as_copy_of_mut_ptr(self.item.cast_mut(), self.item.refs(), self.item.orig_addr());
         }
         node
     }
@@ -660,7 +666,7 @@ impl<'c> std::fmt::Debug for Node<'c> {
                     crate::color::fg("Node@", 231),
                     format!("{:016x}", self.addr()),
                     // crate::color::ptr_inv(self),
-                    format!("[refs={}]", self.refs),
+                    format!("[refs={}]", *self.refs),
                     if self.item.is_null() {
                         color::fg("null", 196)
                     } else {

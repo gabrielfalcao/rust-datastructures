@@ -265,7 +265,7 @@ fn test_unique_pointer_from_ref_outer_data_structure<'t>() {
     assert_equal!(data_ptr.value.is_allocated(), true);
     assert_greater_than!(data_ptr.value.addr(), 0, "address should not be null");
     assert_equal!(data_ptr.value.is_written(), true);
-    assert_equal!(data_ptr.value.inner_ref(), &Value::from("string"));
+    assert_equal!(data_ptr.value, &Value::from("string"));
     assert_equal!(data_ptr.value.read(), Value::from("string"));
     assert_equal!(data_ptr.value.as_ref(), Some(&Value::from("string")));
     assert_equal!(data_ptr.value.as_mut(), Some(&mut Value::from("string")));
@@ -290,11 +290,11 @@ fn test_unique_pointer_copy_from_ref_outer_data_structure<'t>() {
 
     let mut data_ptr = UniquePointer::<Data<'t>>::copy_from_ref(data_ref, 0, UniquePointer::raw_addr_of_ref(data_ref));
 
+    assert_greater_than!(data_ptr.value.addr(), 0, "address should not be null");
     assert_equal!(data_ptr.value.is_null(), false);
     assert_equal!(data_ptr.value.is_allocated(), true);
-    assert_greater_than!(data_ptr.value.addr(), 0, "address should not be null");
     assert_equal!(data_ptr.value.is_written(), true);
-    assert_equal!(data_ptr.value.inner_ref(), &Value::from("string"));
+    assert_equal!(data_ptr.value, &Value::from("string"));
     assert_equal!(data_ptr.value.read(), Value::from("string"));
     assert_equal!(data_ptr.value.as_ref(), Some(&Value::from("string")));
     assert_equal!(data_ptr.value.as_mut(), Some(&mut Value::from("string")));

@@ -134,12 +134,8 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             _marker: PhantomData,
         }
     }
-    pub fn point_to_mut_ptr<'r>(
-        &mut self,
-        ptr: *mut T,
-        refs: usize,
-        orig_addr: usize,
-    ) {
+
+    pub fn set_as_copy_of_mut_ptr<'r>(&mut self, ptr: *mut T, refs: usize, orig_addr: usize) {
         self.dealloc(false);
         let addr = UniquePointer::provenance_of_mut_ptr(ptr);
         self.mut_addr = addr;
@@ -279,47 +275,77 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     /// `cast_mut` is a compatibility API to a raw mut pointer's [`pointer::cast_mut`].
     pub fn cast_mut(&self) -> *mut T {
         if self.is_null() {
-            panic!("{:#?} is null", self);
+            // return std::ptr::null_mut::<T>()
+            panic!("{:#?}", self);
+        } else {
+            self.mut_ptr
         }
-        self.mut_ptr
     }
 
     /// `cast_mut` is a compatibility API to a raw const pointer's [`pointer::cast_const`].
     pub fn cast_const(&self) -> *const T {
         if self.is_null() {
-            panic!("{:#?} is null", self);
+            // return std::ptr::null::<T>()
+            panic!("{:#?}", self);
+        } else {
+            self.mut_ptr.cast_const()
         }
-        self.mut_ptr.cast_const()
     }
 
-    /// `inner_ref` obtains a read-only reference to the value inside [`UniquePointer`] and increments reference
-    pub fn inner_ref(&self) -> &'c T {
-        self.incr_ref();
+    /// `peek_ref` obtains a read-only reference to the value inside
+    /// [`UniquePointer`] but does not increment references
+    pub fn peek_ref(&self) -> &'c T {
         unsafe { std::mem::transmute::<&T, &'c T>(&*self.cast_const()) }
     }
 
-    /// `inner_mut` obtains a mutable reference to the value inside [`UniquePointer`] and increments reference
+    /// `peek_mut` obtains a mutable reference to the value inside
+    /// [`UniquePointer`] but does not increment references
+    pub fn peek_mut(&mut self) -> &'c mut T {
+        unsafe { std::mem::transmute::<&mut T, &'c mut T>(&mut *self.mut_ptr) }
+    }
+
+    /// `inner_ref` obtains a read-only reference to the value inside
+    /// [`UniquePointer`] and increments reference
+    pub fn inner_ref(&self) -> &'c T {
+        self.incr_ref();
+         // step!("{:#?}", self);
+        self.peek_ref()
+    }
+
+    /// `inner_mut` obtains a mutable reference to the value inside
+    /// [`UniquePointer`] and increments reference
     pub fn inner_mut(&mut self) -> &'c mut T {
         self.incr_ref();
-        unsafe { std::mem::transmute::<&mut T, &'c mut T>(&mut *self.mut_ptr) }
+         // step!("{:#?}", self);
+        self.peek_mut()
     }
 
     /// `as_ref` is a compatibility layer to the [`AsRef`] implementation in raw pointers
     pub fn as_ref(&self) -> Option<&'c T> {
-        if self.is_written() {
-            Some(self.inner_ref())
-        } else {
-            None
+        self.incr_ref();
+        unsafe {
+            self.mut_ptr.as_ref()
         }
+        //  // step!("{:#?}", self);
+        // if self.is_written() {
+        //     Some(self.inner_ref())
+        // } else {
+        //     None
+        // }
     }
 
     /// `as_mut` is a compatibility layer to the [`AsMut`] implementation in raw pointers
     pub fn as_mut(&mut self) -> Option<&'c mut T> {
-        if self.is_written() {
-            Some(self.inner_mut())
-        } else {
-            None
+        self.incr_ref();
+        unsafe {
+            self.mut_ptr.as_mut()
         }
+        //  // step!("{:#?}", self);
+        // if self.is_written() {
+        //     Some(self.inner_mut())
+        // } else {
+        //     None
+        // }
     }
 
     /// `dealloc` deallocates a [`UniquePointer`].
