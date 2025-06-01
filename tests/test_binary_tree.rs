@@ -236,20 +236,20 @@ impl<'t> MitCourseWareTree<'t> {
 fn test_tree_initial_state() {
     MitCourseWareTree::initial_state();
 }
-// #[test]
-// fn test_tree_property_height() {
-//     let mut tree = MitCourseWareTree::initial_state();
-//
-//     assert_equal!(tree.node_c.height(), 0); // leaf
-//     assert_equal!(tree.node_e.height(), 0); // leaf
-//     assert_equal!(tree.node_f.height(), 0); // leaf
-//
-//     assert_equal!(tree.node_a.height(), 3);
-//
-//     assert_equal!(tree.node_b.height(), 2);
-//
-//     assert_equal!(tree.node_d.height(), 1);
-// }
+#[test]
+fn test_tree_property_height() {
+    let mut tree = MitCourseWareTree::initial_state();
+
+    assert_equal!(tree.node_c.height(), 0); // leaf
+    assert_equal!(tree.node_e.height(), 0); // leaf
+    assert_equal!(tree.node_f.height(), 0); // leaf
+
+    assert_equal!(tree.node_a.height(), 3);
+
+    assert_equal!(tree.node_b.height(), 2);
+
+    assert_equal!(tree.node_d.height(), 1);
+}
 //
 // #[test]
 // fn test_tree_property_depth() {

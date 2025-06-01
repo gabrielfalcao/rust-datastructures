@@ -99,6 +99,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             _marker: PhantomData,
         }
     }
+
     /// `copy` is designed for use within the [`Clone`] implementation
     /// of `UniquePointer`.
     ///
@@ -110,11 +111,17 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         up.is_copy = true;
         up
     }
+
     pub fn copy_from_ref<'r>(data: &'r T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
         let ptr = (data as *const T).cast_mut();
         UniquePointer::copy_from_mut_ptr(ptr, refs, orig_addr)
     }
-    pub fn copy_from_mut_ptr<'r>(ptr:  *mut T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
+
+    pub fn copy_from_mut_ptr<'r>(
+        ptr: *mut T,
+        refs: usize,
+        orig_addr: usize,
+    ) -> UniquePointer<'c, T> {
         let addr = UniquePointer::provenance_of_mut_ptr(ptr);
         UniquePointer {
             mut_addr: addr,
@@ -126,6 +133,22 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             is_copy: true,
             _marker: PhantomData,
         }
+    }
+    pub fn point_to_mut_ptr<'r>(
+        &mut self,
+        ptr: *mut T,
+        refs: usize,
+        orig_addr: usize,
+    ) {
+        self.dealloc(false);
+        let addr = UniquePointer::provenance_of_mut_ptr(ptr);
+        self.mut_addr = addr;
+        self.mut_ptr = ptr;
+        self.refs = RefCounter::from(refs);
+        self.orig_addr = orig_addr;
+        self.written = true;
+        self.alloc = true;
+        self.is_copy = true;
     }
 
     /// `addr` returns the value containing both the provenance and
@@ -223,7 +246,6 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         }
         self.written = true;
         self.orig_addr = orig_addr;
-
     }
 
     /// `write_ref_mut` takes a mutable reference to a value and
@@ -321,6 +343,13 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         } else {
             self.free();
         }
+    }
+
+    pub fn set_ptr(&mut self, ptr: &T) {
+        self.set_mut_ptr(ptr as *const T as *mut T, false);
+        self.written = true;
+        self.alloc = true;
+        self.is_copy = true;
     }
 
     /// `set_mut_ptr` sets the internal raw pointer of a `UniquePointer`.
@@ -430,7 +459,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     fn incr_ref(&self) {
         if self.is_null() {
             // panic!("null {:#?}", self);
-            return
+            return;
         }
         let ptr = self.meta_mut_ptr();
         unsafe {

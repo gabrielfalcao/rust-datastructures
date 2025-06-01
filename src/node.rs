@@ -11,7 +11,7 @@ use std::ptr::NonNull;
 
 use crate::{
     cast_node_mut, cast_node_ref, color, decr_ref_nonzero, internal, step, step_test,
-    UniquePointer, Value,
+    UniquePointer, Value, RefCounter
 };
 
 pub struct Node<'c> {
@@ -19,7 +19,7 @@ pub struct Node<'c> {
     left: UniquePointer<'c, Node<'c>>,
     right: UniquePointer<'c, Node<'c>>,
     item: *mut Value<'c>,
-    refs: usize,
+    refs: RefCounter,
 }
 
 impl<'c> Node<'c> {
@@ -29,7 +29,7 @@ impl<'c> Node<'c> {
             left: UniquePointer::<'c, Node<'c>>::null(),
             right: UniquePointer::<'c, Node<'c>>::null(),
             item: internal::null::value(),
-            refs: 0,
+            refs: RefCounter::new(),
         }
     }
 
@@ -98,15 +98,15 @@ impl<'c> Node<'c> {
     }
 
     pub fn set_left(&mut self, left: &mut Node<'c>) {
-        self.left.write_ref_mut(left);
         left.parent = self.ptr();
+        self.left.write_ref_mut(left);
         self.incr_ref();
         left.incr_ref();
     }
 
     pub fn set_right(&mut self, right: &mut Node<'c>) {
-        self.right.write_ref_mut(right);
         right.parent = self.ptr();
+        self.right.write_ref_mut(right);
         self.incr_ref();
         right.incr_ref();
     }
@@ -163,13 +163,12 @@ impl<'c> Node<'c> {
 
     pub fn height(&self) -> usize {
         let mut node = self;
-        if self.left.is_null() {
-            return 0;
-        }
+        dbg!(&node);
         let mut vertices = 0;
 
         while !node.left.is_null() {
-            node = unsafe { node.left.as_ref().unwrap() };
+            dbg!(&node);
+            node = node.left.inner_ref();
             vertices += 1;
         }
         vertices
@@ -210,7 +209,7 @@ impl<'c> Node<'c> {
     }
 
     pub fn refs(&self) -> usize {
-        self.refs
+        *self.refs
     }
 
     pub fn subtree_first(&self) -> &'c Node<'c> {
@@ -487,8 +486,9 @@ pub fn subtree_delete<'c>(node: &mut Node<'c>) {
                 parent.right.dealloc(true);
             }
         }
-        node.refs = 0;
+        node.refs.reset();
         node.parent.dealloc(true);
+        node.parent = UniquePointer::<'c, Node<'c>>::null();
         return;
     } else {
         let mut predecessor = node.predecessor_mut();
@@ -501,7 +501,7 @@ pub fn subtree_delete<'c>(node: &mut Node<'c>) {
 impl<'c> Node<'c> {
     fn ptr(&self) -> UniquePointer<'c, Node<'c>> {
         let ptr =
-            UniquePointer::copy_from_ref(self, self.refs, UniquePointer::raw_addr_of_ref(self));
+            UniquePointer::copy_from_ref(self, *self.refs, UniquePointer::raw_addr_of_ref(self));
         ptr
     }
 
@@ -604,10 +604,11 @@ impl<'c> PartialEq<&mut Node<'c>> for Node<'c> {
 impl<'c> Clone for Node<'c> {
     fn clone(&self) -> Node<'c> {
         let mut node = Node::nil();
-        node.refs = self.refs;
-        node.parent = self.parent.clone();
-        node.left = self.left.clone();
-        node.right = self.right.clone();
+        node.refs = self.refs.clone();
+        node.parent.point_to_mut_ptr(self.parent.cast_mut(), *self.parent.refs, self.parent.orig_addr());
+        node.left.point_to_mut_ptr(self.left.cast_mut(), *self.left.refs, self.left.orig_addr());
+        node.right.point_to_mut_ptr(self.right.cast_mut(), *self.right.refs, self.right.orig_addr());
+        node.incr_ref();
         unsafe {
             if !self.item.is_null() {
                 let item = internal::alloc::value();

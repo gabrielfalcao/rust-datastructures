@@ -71,11 +71,11 @@ impl<'t> MitCourseWareTree<'t> {
         ///
         ///                                                                     ///
         /// Then the parent of node B parent has value "A"                      ///
-        assert_equal!(node_b.parent_value(), node_a.value());
-        ///
+        assert_equal!(node_b.parent_value(), node_a.value());                   ///
+        ///                                                                     ///
         /// And the parent of node C parent has value "A"                       ///
-        assert_equal!(node_c.parent_value(), node_a.value());
-        ///
+        assert_equal!(node_c.parent_value(), node_a.value());                   ///
+        ///                                                                     ///
         /// And the parent of node D parent has value "B"                       ///
         assert_equal!(node_d.parent_value(), node_b.value());
         ///
@@ -236,20 +236,20 @@ impl<'t> MitCourseWareTree<'t> {
 fn test_tree_initial_state() {
     MitCourseWareTree::initial_state();
 }
-// #[test]
-// fn test_tree_property_height() {
-//     let mut tree = MitCourseWareTree::initial_state();
-//
-//     assert_equal!(tree.node_c.height(), 0); // leaf
-//     assert_equal!(tree.node_e.height(), 0); // leaf
-//     assert_equal!(tree.node_f.height(), 0); // leaf
-//
-//     assert_equal!(tree.node_a.height(), 3);
-//
-//     assert_equal!(tree.node_b.height(), 2);
-//
-//     assert_equal!(tree.node_d.height(), 1);
-// }
+#[test]
+fn test_tree_property_height() {
+    let mut tree = MitCourseWareTree::initial_state();
+
+    assert_equal!(tree.node_c.height(), 0); // leaf
+    assert_equal!(tree.node_e.height(), 0); // leaf
+    assert_equal!(tree.node_f.height(), 0); // leaf
+
+    assert_equal!(tree.node_a.height(), 3);
+
+    assert_equal!(tree.node_b.height(), 2);
+
+    assert_equal!(tree.node_d.height(), 1);
+}
 //
 // #[test]
 // fn test_tree_property_depth() {
