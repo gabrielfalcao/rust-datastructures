@@ -123,11 +123,12 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         orig_addr: usize,
     ) -> UniquePointer<'c, T> {
         let addr = UniquePointer::provenance_of_mut_ptr(ptr);
+        let refs = RefCounter::from(refs);
         UniquePointer {
             mut_addr: addr,
             mut_ptr: ptr,
             orig_addr: orig_addr,
-            refs: RefCounter::from(refs),
+            refs: refs,
             written: true,
             alloc: true,
             is_copy: true,

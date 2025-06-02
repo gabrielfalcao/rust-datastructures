@@ -18,14 +18,13 @@ doctest = false
 k9 = "0.12.0"
 
 
-# [[test]]
-# name = "unique_ptr"
-# path = "./tests/test_unique_ptr.rs"
-
-
 [[test]]
 name = "simple_binary_tree"
 path = "./tests/test_simple_binary_tree.rs"
+
+# [[test]]
+# name = "unique_ptr"
+# path = "./tests/test_unique_ptr.rs"
 
 # # [[test]]
 # # name = "binary_tree_with_references"
