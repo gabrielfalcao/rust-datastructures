@@ -101,7 +101,10 @@ impl<'c> Node<'c> {
 
     pub fn set_left(&mut self, left: &mut Node<'c>) {
         self.incr_ref();
-        left.parent = self.ptr();
+        let parent_ptr =
+            UniquePointer::noncopy_from_mut_ptr(self as *mut Node<'c>, *self.refs, UniquePointer::raw_addr_of_ref(self));
+
+        left.parent = parent_ptr;
         self.left = left.ptr();
         left.incr_ref();
     }
@@ -124,12 +127,10 @@ impl<'c> Node<'c> {
 
     pub fn left(&self) -> Option<&'c Node<'c>> {
         let left = self.left.as_ref();
-        dbg!(&left);
         left
     }
 
     pub fn left_mut(&mut self) -> Option<&'c mut Node<'c>> {
-        dbg!(&self.left);
         self.left.as_mut()
     }
 
@@ -733,9 +734,9 @@ impl<'c> std::fmt::Debug for Node<'c> {
         )
     }
 }
-impl<'c> Drop for Node<'c> {
-    fn drop(&mut self) {
-        // step!("drop {:#?}", &self);
-        // self.dealloc()
-    }
-}
+// impl<'c> Drop for Node<'c> {
+//     fn drop(&mut self) {
+//         // step!("drop {:#?}", &self);
+//         // self.dealloc()
+//     }
+// }

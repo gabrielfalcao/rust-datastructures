@@ -112,15 +112,23 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         up
     }
 
-    pub fn copy_from_ref<'r>(data: &'r T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
+    pub fn copy_from_ref(data: & T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
         let ptr = (data as *const T).cast_mut();
         UniquePointer::copy_from_mut_ptr(ptr, refs, orig_addr)
     }
+    pub fn copy_from_mut_ptr(ptr: *mut T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
+        UniquePointer::from_mut_ptr(ptr, refs, orig_addr, true)
+    }
 
-    pub fn copy_from_mut_ptr<'r>(
+    pub fn noncopy_from_mut_ptr(ptr: *mut T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
+        UniquePointer::from_mut_ptr(ptr, refs, orig_addr, false)
+    }
+
+    fn from_mut_ptr<'r>(
         ptr: *mut T,
         refs: usize,
         orig_addr: usize,
+        is_copy: bool,
     ) -> UniquePointer<'c, T> {
         let addr = UniquePointer::provenance_of_mut_ptr(ptr);
         let refs = RefCounter::from(refs);
@@ -131,7 +139,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             refs: refs,
             written: true,
             alloc: true,
-            is_copy: true,
+            is_copy: false,
             _marker: PhantomData,
         }
     }
@@ -215,7 +223,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     /// `alloc` allocates memory in a null `UniquePointer`
     pub fn alloc(&mut self) {
         if self.is_allocated() {
-            warn!("{:#?} is already allocated, force-deallocating now", &self);
+            // warn!("{:#?} is already allocated, force-deallocating now", &self);
             self.dealloc(false);
             return;
         }
@@ -370,7 +378,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     pub fn set_ptr(&mut self, ptr: &T) {
-        self.set_mut_ptr(ptr as *const T as *mut T, false);
+        self.set_mut_ptr((ptr as *const T).cast_mut(), false);
         self.written = true;
         self.alloc = true;
         self.is_copy = true;
@@ -384,7 +392,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     fn set_mut_ptr(&mut self, ptr: *mut T, dealloc: bool) {
         if ptr.is_null() {
             if dealloc && self.can_dealloc() {
-                warn!("deallocating {:#?}", self);
+                // warn!("deallocating {:#?}", self);
                 let layout = Layout::new::<T>();
                 let mut_ptr = self.mut_ptr;
                 unsafe {
@@ -521,11 +529,11 @@ impl<'c, T: Sized + 'c> DerefMut for UniquePointer<'c, T> {
     }
 }
 
-impl<'c, T: Sized + 'c> Drop for UniquePointer<'c, T> {
-    fn drop(&mut self) {
-        self.dealloc(true);
-    }
-}
+// impl<'c, T: Sized + 'c> Drop for UniquePointer<'c, T> {
+//     fn drop(&mut self) {
+//         // self.dealloc(true);
+//     }
+// }
 
 impl<'c, T: Sized + 'c> From<&T> for UniquePointer<'c, T> {
     fn from(data: &T) -> UniquePointer<'c, T> {

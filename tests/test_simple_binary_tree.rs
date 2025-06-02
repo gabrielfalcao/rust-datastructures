@@ -13,10 +13,10 @@ pub fn tree<'t>() -> Node<'t> {
     assert_equal!(node_c.value(), Some(Value::from("C")));
     assert_equal!(node_d.value(), Some(Value::from("D")));
 
-    assert_equal!(node_a.refs(), 1);
-    assert_equal!(node_b.refs(), 1);
-    assert_equal!(node_c.refs(), 1);
-    assert_equal!(node_d.refs(), 1);
+    assert_equal!(node_a.refs(), 0);
+    assert_equal!(node_b.refs(), 0);
+    assert_equal!(node_c.refs(), 0);
+    assert_equal!(node_d.refs(), 0);
 
     node_a.set_left(&mut node_b);
     node_a.set_right(&mut node_c);
@@ -30,10 +30,10 @@ pub fn tree<'t>() -> Node<'t> {
     assert_equal!(node_c.parent_value(), node_a.value());
     assert_equal!(node_d.parent_value(), node_b.value());
 
-    assert_equal!(node_a.refs(), 7);
-    assert_equal!(node_b.refs(), 4);
-    assert_equal!(node_c.refs(), 2);
-    assert_equal!(node_d.refs(), 2);
+    assert_equal!(node_a.refs(), 6);
+    assert_equal!(node_b.refs(), 3);
+    assert_equal!(node_c.refs(), 1);
+    assert_equal!(node_d.refs(), 1);
 
     node_a
 }
@@ -52,36 +52,36 @@ fn test_tree_initial_state_inner_refs_memory_access_bad_access() {
 
     let node_b = node_a.left().expect("Node B as left of A");
     let node_c = node_a.right().expect("Node C as right of A");
-    // let node_d = node_b.left().expect("Node D as left of B");
+    let node_d = node_b.left().expect("Node D as left of B");
 
     let mut node_b = node_b.clone();
     let mut node_c = node_c.clone();
-    // let mut node_d = node_d.clone();
+    let mut node_d = node_d.clone();
 
     assert_equal!(node_b.parent_value(), node_a.value());
     assert_equal!(node_c.parent_value(), node_a.value());
-    // assert_equal!(node_d.parent_value(), node_b.value());
+    assert_equal!(node_d.parent_value(), node_b.value());
 
     assert_equal!(node_b.parent(), Some(&node_a));
     assert_equal!(node_c.parent(), Some(&node_a));
-    // assert_equal!(node_d.parent(), Some(&node_b));
+    assert_equal!(node_d.parent(), Some(&node_b));
 
     assert_equal!(node_a.left(), Some(&node_b));
     assert_equal!(node_a.right(), Some(&node_c));
     assert_equal!(node_a.parent(), None);
-    // assert_equal!(node_b.left(), Some(&node_d));
+    assert_equal!(node_b.left(), Some(&node_d));
     assert_equal!(node_b.parent(), Some(&node_a));
     assert_equal!(node_b.parent().unwrap().parent(), None);
     assert_equal!(node_c.left(), None);
     assert_equal!(node_c.right(), None);
     assert_equal!(node_c.parent(), Some(&node_a));
     assert_equal!(node_c.parent().unwrap().parent(), None);
-    // assert_equal!(node_d.right(), None);
-    // assert_equal!(node_d.parent(), Some(&node_b));
-    // assert_equal!(node_d.parent().unwrap().parent(), Some(&node_a));
-    // assert_equal!(node_d.parent().unwrap().parent().unwrap().parent(), None);
-    assert_equal!(node_a.refs(), 8);
-    assert_equal!(node_b.refs(), 7);
+    assert_equal!(node_d.right(), None);
+    assert_equal!(node_d.parent(), Some(&node_b));
+    assert_equal!(node_d.parent().unwrap().parent(), Some(&node_a));
+    assert_equal!(node_d.parent().unwrap().parent().unwrap().parent(), None);
+    assert_equal!(node_a.refs(), 6);
+    assert_equal!(node_b.refs(), 3);
     assert_equal!(node_c.refs(), 1);
-    // assert_equal!(node_d.refs(), 3);
+    assert_equal!(node_d.refs(), 1);
 }
