@@ -444,16 +444,9 @@ impl<'c> Node<'c> {
     }
 
     pub fn swap_item(&mut self, other: &mut Node<'c>) {
-        // step_test!("before self={} other={}", self, other);
-
-        let addr = UniquePointer::provenance_of_mut(other);
-        other.item = other.item.with_addr(UniquePointer::provenance_of_mut_ptr(self.item));
-        self.item = self.item.with_addr(addr);
-
-        // let refs = other.refs;
-        // other.refs = self.refs;
-        // self.refs = refs;
-        // step_test!("after self={} other={}", self, other);
+        let item = other.item;
+        other.item = self.item;
+        self.item = item;
     }
 }
 
