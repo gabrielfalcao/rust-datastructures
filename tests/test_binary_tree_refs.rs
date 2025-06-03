@@ -274,10 +274,10 @@ impl<'c, 't> MitCourseWareTree<'c, 't> {
         unsafe { std::mem::transmute::<MitCourseWareTree, MitCourseWareTree<'c, 't>>(tree) }
     }
 }
-// #[test]
-// fn test_tree_initial_state() {
-//     MitCourseWareTree::initial_state();
-// }
+#[test]
+fn test_tree_initial_state() {
+    MitCourseWareTree::initial_state();
+}
 #[test]
 fn test_tree_property_height() {
     let mut tree = MitCourseWareTree::initial_state();
