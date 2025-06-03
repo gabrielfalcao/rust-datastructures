@@ -43,19 +43,19 @@ macro_rules! decr_ref_nonzero {
         if $data_structure.refs > 0 {
             $data_structure.refs -= 1;
         } else {
-            eprintln!(
-                "\r{}",
-                crate::color::ansi(
-                    format!(
-                        "[{}:{}] WARNING: attempt to decrement references of {}",
-                        file!(),
-                        line!(),
-                        &$data_structure
-                    ),
-                    16,
-                    220
-                )
-            );
+            // eprintln!(
+            //     "\r{}",
+            //     crate::color::ansi(
+            //         format!(
+            //             "[{}:{}] WARNING: attempt to decrement references of {}",
+            //             file!(),
+            //             line!(),
+            //             &$data_structure
+            //         ),
+            //         16,
+            //         220
+            //     )
+            // );
         }
     };
 }

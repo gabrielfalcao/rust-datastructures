@@ -22,7 +22,9 @@ impl RefCounter {
         }
     }
     pub fn new() -> RefCounter {
-        RefCounter::null()
+        let mut ref_counter = RefCounter::null();
+        ref_counter.incr();
+        ref_counter
     }
 
     pub fn reset(&mut self) {

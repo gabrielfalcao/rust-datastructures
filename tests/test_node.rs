@@ -58,8 +58,8 @@ fn test_set_left() {
     assert_equal!(node.value(), Some(Value::from("value")));
     assert_equal!(node.parent(), None);
     assert_equal!(node.left_value(), Some(Value::from("left")));
-    assert_equal!(node.refs(), 2);
-    assert_equal!(left.refs(), 1);
+    assert_equal!(node.refs(), 3);
+    assert_equal!(left.refs(), 2);
     assert_equal!(node.left(), Some(&left));
     assert_equal!(node.right_value(), None);
     assert_equal!(node.right(), None);

@@ -112,15 +112,20 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         up
     }
 
-    pub fn copy_from_ref(data: & T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
+    pub fn copy_from_ref(data: &T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
         let ptr = (data as *const T).cast_mut();
         UniquePointer::copy_from_mut_ptr(ptr, refs, orig_addr)
     }
+
     pub fn copy_from_mut_ptr(ptr: *mut T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
         UniquePointer::from_mut_ptr(ptr, refs, orig_addr, true)
     }
 
-    pub fn noncopy_from_mut_ptr(ptr: *mut T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
+    pub fn noncopy_from_mut_ptr(
+        ptr: *mut T,
+        refs: usize,
+        orig_addr: usize,
+    ) -> UniquePointer<'c, T> {
         UniquePointer::from_mut_ptr(ptr, refs, orig_addr, false)
     }
 
@@ -392,6 +397,11 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     fn set_mut_ptr(&mut self, ptr: *mut T, dealloc: bool) {
         if ptr.is_null() {
             if dealloc && self.can_dealloc() {
+                // unsafe {
+                //     self.mut_ptr.drop_in_place();
+                // }
+                self.alloc = false;
+                self.written = false;
                 // warn!("deallocating {:#?}", self);
                 let layout = Layout::new::<T>();
                 let mut_ptr = self.mut_ptr;
@@ -413,7 +423,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
 
     fn free(&mut self) {
         if !self.is_null() {
-            self.set_mut_ptr(std::ptr::null_mut::<T>(), true);
+            self.set_mut_ptr(std::ptr::null_mut::<T>(), false);
         }
         self.refs.reset();
         self.alloc = false;
@@ -529,11 +539,11 @@ impl<'c, T: Sized + 'c> DerefMut for UniquePointer<'c, T> {
     }
 }
 
-// impl<'c, T: Sized + 'c> Drop for UniquePointer<'c, T> {
-//     fn drop(&mut self) {
-//         // self.dealloc(true);
-//     }
-// }
+impl<'c, T: Sized + 'c> Drop for UniquePointer<'c, T> {
+    fn drop(&mut self) {
+        self.dealloc(true);
+    }
+}
 
 impl<'c, T: Sized + 'c> From<&T> for UniquePointer<'c, T> {
     fn from(data: &T) -> UniquePointer<'c, T> {
