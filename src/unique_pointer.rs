@@ -351,42 +351,37 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
 
     /// `inner_ref` obtains a read-only reference to the value inside
     /// [`UniquePointer`] and increments reference
-    pub fn inner_ref(&self) -> &'c T {
+    pub fn inner_ref<'a>(&self) -> &'a T {
         self.incr_ref();
-        // step!("{:#?}", self);
-        self.peek_ref()
+        unsafe { std::mem::transmute::<&'c T, &'a T>(self.peek_ref()) }
     }
 
     /// `inner_mut` obtains a mutable reference to the value inside
     /// [`UniquePointer`] and increments reference
-    pub fn inner_mut(&mut self) -> &'c mut T {
+    pub fn inner_mut<'a>(&mut self) -> &'a mut T {
         self.incr_ref();
         // step!("{:#?}", self);
-        self.peek_mut()
+        unsafe { std::mem::transmute::<&'c mut T, &'a mut T>(self.peek_mut()) }
     }
 
     /// `as_ref` is a compatibility layer to the [`AsRef`] implementation in raw pointers
-    pub fn as_ref(&self) -> Option<&'c T> {
+    pub fn as_ref<'a>(&self) -> Option<&'a T> {
         self.incr_ref();
-        unsafe { self.mut_ptr.as_ref() }
-        //  // step!("{:#?}", self);
-        // if self.is_written() {
-        //     Some(self.inner_ref())
-        // } else {
-        //     None
-        // }
+        if self.is_written() {
+            Some(self.inner_ref())
+        } else {
+            None
+        }
     }
 
     /// `as_mut` is a compatibility layer to the [`AsMut`] implementation in raw pointers
-    pub fn as_mut(&mut self) -> Option<&'c mut T> {
+    pub fn as_mut<'a>(&mut self) -> Option<&'a mut T> {
         self.incr_ref();
-        unsafe { self.mut_ptr.as_mut() }
-        //  // step!("{:#?}", self);
-        // if self.is_written() {
-        //     Some(self.inner_mut())
-        // } else {
-        //     None
-        // }
+        if self.is_written() {
+            Some(self.inner_mut())
+        } else {
+            None
+        }
     }
 
     /// `dealloc` deallocates a [`UniquePointer`].
@@ -582,11 +577,11 @@ impl<'c, T: Sized + 'c> DerefMut for UniquePointer<'c, T> {
     }
 }
 
-impl<'c, T: Sized + 'c> Drop for UniquePointer<'c, T> {
-    fn drop(&mut self) {
-        self.dealloc(true);
-    }
-}
+// impl<'c, T: Sized + 'c> Drop for UniquePointer<'c, T> {
+//     fn drop(&mut self) {
+//         self.dealloc(true);
+//     }
+// }
 
 impl<'c, T: Sized + 'c> From<&T> for UniquePointer<'c, T> {
     fn from(data: &T) -> UniquePointer<'c, T> {

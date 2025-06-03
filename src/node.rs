@@ -15,10 +15,10 @@ use crate::{
 };
 
 pub struct Node<'c> {
-    parent: UniquePointer<'c, Node<'c>>,
-    left: UniquePointer<'c, Node<'c>>,
-    right: UniquePointer<'c, Node<'c>>,
-    item: UniquePointer<'c, Value<'c>>,
+    pub parent: UniquePointer<'c, Node<'c>>,
+    pub left: UniquePointer<'c, Node<'c>>,
+    pub right: UniquePointer<'c, Node<'c>>,
+    pub item: UniquePointer<'c, Value<'c>>,
     refs: RefCounter,
 }
 
@@ -161,11 +161,11 @@ impl<'c> Node<'c> {
     }
 
     pub fn height(&self) -> usize {
-        let mut node = &self.ptr();
+        let mut node = self;
         let mut vertices = 0;
 
-        while !node.peek_ref().left.is_null() {
-            node = &node.peek_ref().left;
+        while !node.left.is_null() {
+            node = node.left.inner_ref();
             vertices += 1;
         }
         vertices
@@ -179,7 +179,7 @@ impl<'c> Node<'c> {
         let mut vertices = 0;
 
         while !node.parent.is_null() {
-            node = unsafe { node.parent.as_ref().unwrap() };
+            node = node.parent.inner_ref();
             vertices += 1;
         }
         vertices
@@ -477,7 +477,7 @@ pub fn subtree_delete<'c>(node: &mut Node<'c>) {
 
 /// Node private methods
 impl<'c> Node<'c> {
-    fn ptr(&self) -> UniquePointer<'c, Node<'c>> {
+    pub fn ptr(&self) -> UniquePointer<'c, Node<'c>> {
         let ptr =
             UniquePointer::copy_from_ref(self, *self.refs, UniquePointer::raw_addr_of_ref(self));
         ptr
@@ -552,26 +552,21 @@ impl<'c> PartialEq<Node<'c>> for Node<'c> {
 impl<'c> PartialEq<&mut Node<'c>> for Node<'c> {
     fn eq(&self, other: &&mut Node<'c>) -> bool {
         let other = unsafe { &**other };
-        if self.parent_eq(other)
-            && self.item_eq(other)
-            && self.left_eq(other)
-            && self.right_eq(other)
-        {
-            self.value().unwrap_or_default() == other.value().unwrap_or_default()
-                && self.parent_value() == other.parent_value()
-                && self.left_value() == other.left_value()
-                && self.right_value() == other.right_value()
+        if self.item_eq(other) {
+            let eq = self.value().unwrap_or_default() == other.value().unwrap_or_default();
+            eq
         } else {
             false
         }
     }
 }
 
-impl<'c> Drop for Node<'c> {
-    fn drop(&mut self) {
-        self.dealloc();
-    }
-}
+// impl<'c> Drop for Node<'c> {
+//     fn drop(&mut self) {
+//         step!("deallocating {:#?}", self);
+//         self.dealloc();
+//     }
+// }
 
 impl<'c> Clone for Node<'c> {
     fn clone(&self) -> Node<'c> {

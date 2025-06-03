@@ -1,4 +1,6 @@
+
 [package]
+
 name = "rust-datastructures"
 version = "0.1.0"
 edition = "2024"
@@ -18,6 +20,10 @@ doctest = false
 k9 = "0.12.0"
 
 [[test]]
+name = "binary_tree_with_references"
+path = "./tests/test_binary_tree_refs.rs"
+
+[[test]]
 name = "binary_tree"
 path = "./tests/test_binary_tree.rs"
 
@@ -28,10 +34,6 @@ path = "./tests/test_unique_ptr.rs"
 [[test]]
 name = "refcounter"
 path = "./tests/test_refcounter.rs"
-
-# [[test]]
-# name = "binary_tree_with_references"
-# path = "./tests/test_binary_tree_refs.rs"
 
 [[test]]
 name = "simple_binary_tree"

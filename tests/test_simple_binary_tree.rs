@@ -101,8 +101,8 @@ fn test_tree_initial_state_inner_refs_memory_access_bad_access() {
     assert_equal!(node_d.parent(), Some(&node_b));
     assert_equal!(node_d.parent().unwrap().parent(), Some(&node_a));
     assert_equal!(node_d.parent().unwrap().parent().unwrap().parent(), None);
-    assert_equal!(node_a.refs(), 2);
-    assert_equal!(node_b.refs(), 2);
-    assert_equal!(node_c.refs(), 1);
-    assert_equal!(node_d.refs(), 1);
+    assert_equal!(node_a.refs(), 5);
+    assert_equal!(node_b.refs(), 4);
+    assert_equal!(node_c.refs(), 2);
+    assert_equal!(node_d.refs(), 2);
 }

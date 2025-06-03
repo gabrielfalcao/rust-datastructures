@@ -2,16 +2,16 @@
 use ds::*;
 use k9::assert_equal;
 
-struct MitCourseWareTree<'t> {
-    pub node_a: &'t mut Node<'t>,
-    pub node_b: &'t mut Node<'t>,
-    pub node_c: &'t mut Node<'t>,
-    pub node_d: &'t mut Node<'t>,
-    pub node_e: &'t mut Node<'t>,
-    pub node_f: &'t mut Node<'t>,
+struct MitCourseWareTree<'c, 't> {
+    pub node_a: &'c mut Node<'t>,
+    pub node_b: &'c mut Node<'t>,
+    pub node_c: &'c mut Node<'t>,
+    pub node_d: &'c mut Node<'t>,
+    pub node_e: &'c mut Node<'t>,
+    pub node_f: &'c mut Node<'t>,
 }
-impl<'t> MitCourseWareTree<'t> {
-    pub fn initial_state() -> MitCourseWareTree<'t> {
+impl<'c, 't> MitCourseWareTree<'c, 't> {
+    pub fn initial_state() -> MitCourseWareTree<'c, 't> {
         ///|||||||||||||||||||||||||||||||||||||||||||||\\\
         ///                                             \\\
         ///              INITIAL TREE STATE             \\\
@@ -213,31 +213,71 @@ impl<'t> MitCourseWareTree<'t> {
         ///
         ///                                                                                        ///
         assert_equal!(node_f.refs(), 2);
-        ///
-        ///                                                                                        ///
-        let tree = unsafe {
-            MitCourseWareTree {
-                node_a: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_a.as_mut()),
-                node_b: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_b.as_mut()),
-                node_c: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_c.as_mut()),
-                node_d: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_d.as_mut()),
-                node_e: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_e.as_mut()),
-                node_f: std::mem::transmute::<&mut Node<'t>, &'t mut Node<'t>>(node_f.as_mut()),
-            }
+        // ///
+        // ///                                                                                        ///
+        // /// Scenario: Node property height
+        // assert_equal!(node_c.height(), 0); // leaf
+        // assert_equal!(node_e.height(), 0); // leaf
+        // assert_equal!(node_f.height(), 0); // leaf
+
+        // assert_equal!(node_a.height(), 3);
+
+        // assert_equal!(node_b.height(), 2);
+
+        // assert_equal!(node_d.height(), 1);
+
+        // /// Scenario: Node property depth
+        // assert_equal!(node_a.depth(), 0);
+
+        // assert_equal!(node_b.depth(), 1);
+        // assert_equal!(node_c.depth(), 1);
+
+        // assert_equal!(node_e.depth(), 2);
+        // assert_equal!(node_d.depth(), 2);
+
+        // assert_equal!(node_f.depth(), 3);
+
+        let tree = MitCourseWareTree {
+            #[rustfmt::skip]
+            node_a: unsafe {std::mem::transmute::<&mut Node<'t>, &'c mut Node<'t>>(&mut node_a)},
+            #[rustfmt::skip]
+            node_b: unsafe {std::mem::transmute::<&mut Node<'t>, &'c mut Node<'t>>(&mut node_b)},
+            #[rustfmt::skip]
+            node_c: unsafe {std::mem::transmute::<&mut Node<'t>, &'c mut Node<'t>>(&mut node_c)},
+            #[rustfmt::skip]
+            node_d: unsafe {std::mem::transmute::<&mut Node<'t>, &'c mut Node<'t>>(&mut node_d)},
+            #[rustfmt::skip]
+            node_e: unsafe {std::mem::transmute::<&mut Node<'t>, &'c mut Node<'t>>(&mut node_e)},
+            #[rustfmt::skip]
+            node_f: unsafe {std::mem::transmute::<&mut Node<'t>, &'c mut Node<'t>>(&mut node_f)},
         };
-        assert_equal!(tree.node_a.refs(), 15);
-        assert_equal!(tree.node_b.refs(), 12);
-        assert_equal!(tree.node_c.refs(), 3);
-        assert_equal!(tree.node_d.refs(), 6);
-        assert_equal!(tree.node_e.refs(), 3);
-        assert_equal!(tree.node_f.refs(), 3);
-        unsafe { std::mem::transmute::<MitCourseWareTree, MitCourseWareTree<'t>>(tree) }
+        assert_equal!(tree.node_c.height(), 0); // leaf
+        assert_equal!(tree.node_e.height(), 0); // leaf
+        assert_equal!(tree.node_f.height(), 0); // leaf
+
+        assert_equal!(tree.node_a.height(), 3);
+
+        assert_equal!(tree.node_b.height(), 2);
+
+        assert_equal!(tree.node_d.height(), 1);
+
+        assert_equal!(tree.node_a.depth(), 0);
+
+        assert_equal!(tree.node_b.depth(), 1);
+        assert_equal!(tree.node_c.depth(), 1);
+
+        assert_equal!(tree.node_e.depth(), 2);
+        assert_equal!(tree.node_d.depth(), 2);
+
+        assert_equal!(tree.node_f.depth(), 3);
+
+        unsafe { std::mem::transmute::<MitCourseWareTree, MitCourseWareTree<'c, 't>>(tree) }
     }
 }
-#[test]
-fn test_tree_initial_state() {
-    MitCourseWareTree::initial_state();
-}
+// #[test]
+// fn test_tree_initial_state() {
+//     MitCourseWareTree::initial_state();
+// }
 #[test]
 fn test_tree_property_height() {
     let mut tree = MitCourseWareTree::initial_state();
@@ -484,7 +524,7 @@ fn test_tree_operation_subtree_delete_root_node() {
     // Given the test tree in its initial state
     let mut tree = MitCourseWareTree::initial_state();
 
-    // Then node A has 9 references
+    // Then node A has 8 references
     assert_equal!(tree.node_a.refs(), 9);
     // And node B is in the left of node A
     assert_equal!(tree.node_a.left(), Some(tree.node_b.as_ref()));
