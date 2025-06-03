@@ -21,6 +21,7 @@ impl RefCounter {
             data: std::ptr::null_mut::<usize>(),
         }
     }
+
     pub fn new() -> RefCounter {
         let mut ref_counter = RefCounter::null();
         ref_counter.incr();
@@ -28,7 +29,7 @@ impl RefCounter {
     }
 
     pub fn reset(&mut self) {
-        self.write(0);
+        self.write(1);
     }
 
     pub fn incr(&mut self) {
@@ -47,6 +48,14 @@ impl RefCounter {
         let data = self.read();
         if data >= by {
             self.write(data - by);
+        }
+    }
+
+    pub fn dealloc(&mut self) {
+        if !self.data.is_null() {
+            unsafe {
+                self.data.drop_in_place();
+            }
         }
     }
 
@@ -72,13 +81,13 @@ impl RefCounter {
             }
             ptr as *mut usize
         };
-        let mut up = self.meta_mut();
+        let mut up = unsafe { self.meta_mut() };
         up.data = ptr;
         up.write(1);
     }
 
     fn write(&self, data: usize) {
-        let mut up = self.meta_mut();
+        let mut up = unsafe { self.meta_mut() };
         up.alloc();
         let mut ptr = up.cast_mut();
         unsafe {
@@ -128,9 +137,7 @@ impl Deref for RefCounter {
 
 impl Drop for RefCounter {
     fn drop(&mut self) {
-        if self.data.is_null() {
-            return;
-        }
+        self.dealloc()
     }
 }
 
@@ -164,18 +171,20 @@ impl std::fmt::Display for RefCounter {
     }
 }
 
+#[allow(invalid_reference_casting)]
 impl<'c> RefCounter {
-    fn meta_mut(&'c self) -> &'c mut RefCounter {
-        let ptr = self.meta_mut_ptr();
+    /// `meta_mut` is an unsafe method that turns a "self reference"
+    /// into a mutable "self reference"
+    unsafe fn meta_mut(&'c self) -> &'c mut RefCounter {
         unsafe {
+            let ptr = self.meta_mut_ptr();
             let mut up = &mut *ptr;
             std::mem::transmute::<&mut RefCounter, &'c mut RefCounter>(up)
         }
     }
-}
-#[allow(invalid_reference_casting)]
-impl RefCounter {
-    fn meta_mut_ptr(&self) -> *mut RefCounter {
+
+    /// `meta_mut_ptr` is an unsafe method that turns a [`*mut UniquePointer`] from a "self reference"
+    unsafe fn meta_mut_ptr(&self) -> *mut RefCounter {
         let ptr = self as *const RefCounter;
         unsafe {
             let ptr: *mut RefCounter =

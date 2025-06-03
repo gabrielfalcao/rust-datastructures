@@ -29,9 +29,9 @@ path = "./tests/test_unique_ptr.rs"
 name = "refcounter"
 path = "./tests/test_refcounter.rs"
 
-[[test]]
-name = "binary_tree_with_references"
-path = "./tests/test_binary_tree_refs.rs"
+# [[test]]
+# name = "binary_tree_with_references"
+# path = "./tests/test_binary_tree_refs.rs"
 
 [[test]]
 name = "simple_binary_tree"

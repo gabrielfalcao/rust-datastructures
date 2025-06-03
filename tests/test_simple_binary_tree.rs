@@ -73,7 +73,6 @@ fn test_tree_initial_state_inner_refs_memory_access_bad_access() {
     let mut node_b = node_b.clone();
     let mut node_c = node_c.clone();
 
-    dbg!(&node_b);
     let node_d = node_b.left();
     assert_equal!(node_d.is_some(), true);
 

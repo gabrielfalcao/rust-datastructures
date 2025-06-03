@@ -18,7 +18,6 @@ macro_rules! assert_debug_equal {
     }};
 }
 
-
 #[macro_export]
 macro_rules! assert_addr_equal {
     ($left:expr, $right:literal) => {{

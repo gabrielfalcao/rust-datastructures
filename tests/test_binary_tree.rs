@@ -237,7 +237,6 @@ impl<'t> MitCourseWareTree<'t> {
         tree.node_e.dealloc();
         tree.node_f.dealloc();
 
-
         unsafe { std::mem::transmute::<MitCourseWareTree, MitCourseWareTree<'t>>(tree) }
     }
 }
@@ -494,9 +493,9 @@ fn test_tree_operation_subtree_delete_root_node() {
 
     // Then node A has 8 references
     assert_equal!(tree.node_a.refs(), 3);
-    // And node B is to the left of node A
+    // And node B is in the left of node A
     assert_equal!(tree.node_a.left(), Some(tree.node_b.as_ref()));
-    // And node C is to the right of node A
+    // And node C is in the right of node A
     assert_equal!(tree.node_a.right(), Some(tree.node_c.as_ref()));
 
     // When I subtree_delete node A
@@ -508,15 +507,15 @@ fn test_tree_operation_subtree_delete_root_node() {
     // And node E (which has become A) has 2 references
     assert_equal!(tree.node_a.refs(), 2);
 
-    // And node A (which has become E) is dangling from the tree with the old value
-    assert_equal!(tree.node_e.value(), Some(Value::from("E")));
+    // And node B is in the left of node E (which has become A)
+    assert_equal!(tree.node_a.left(), Some(tree.node_b.as_ref()));
+
+    // And node C is in the right of node E (which has become A)
+    assert_equal!(tree.node_a.right(), Some(tree.node_c.as_ref()));
 
     // And node A (which has become E) has no more references
-    assert_equal!(tree.node_e.refs(), 0);
+    assert_equal!(tree.node_e.refs(), 1);
 
-
-    // And node B is to the left of node E
-    assert_equal!(tree.node_a.left(), Some(tree.node_b.as_ref()));
-    // And node C is to the right of node E
-    assert_equal!(tree.node_a.right(), Some(tree.node_c.as_ref()));
+    // And node A (which has become E) is dangling from the tree with the old value
+    assert_equal!(tree.node_e.value(), Some(Value::from("E")));
 }

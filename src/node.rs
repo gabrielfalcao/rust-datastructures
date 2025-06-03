@@ -10,15 +10,15 @@ use std::pin::Pin;
 use std::ptr::NonNull;
 
 use crate::{
-    cast_node_mut, cast_node_ref, color, decr_ref_nonzero, internal, step, step_test, RefCounter,
-    UniquePointer, Value, warn, warn_inv
+    cast_node_mut, cast_node_ref, color, decr_ref_nonzero, internal, step, step_test, warn,
+    warn_inv, RefCounter, UniquePointer, Value,
 };
 
 pub struct Node<'c> {
     parent: UniquePointer<'c, Node<'c>>,
     left: UniquePointer<'c, Node<'c>>,
     right: UniquePointer<'c, Node<'c>>,
-    item: *mut Value<'c>,
+    item: UniquePointer<'c, Value<'c>>,
     refs: RefCounter,
 }
 
@@ -28,7 +28,7 @@ impl<'c> Node<'c> {
             parent: UniquePointer::<'c, Node<'c>>::null(),
             left: UniquePointer::<'c, Node<'c>>::null(),
             right: UniquePointer::<'c, Node<'c>>::null(),
-            item: internal::null::value(),
+            item: UniquePointer::<'c, Value<'c>>::null(),
             refs: RefCounter::new(),
         }
     }
@@ -44,9 +44,7 @@ impl<'c> Node<'c> {
     pub fn new(value: Value<'c>) -> Node<'c> {
         let mut node = Node::nil();
         unsafe {
-            let item = internal::alloc::value();
-            item.write_volatile(value);
-            node.item = item;
+            node.item.write(value);
         }
         node
     }
@@ -103,13 +101,13 @@ impl<'c> Node<'c> {
         self.left = left.ptr();
         left.incr_ref();
     }
+
     pub fn set_right(&mut self, right: &mut Node<'c>) {
         self.incr_ref();
         right.parent = self.ptr();
         self.right = right.ptr();
         right.incr_ref();
     }
-
 
     pub fn delete_left(&mut self) {
         if self.left.is_null() {
@@ -429,48 +427,46 @@ impl<'c> Node<'c> {
                 self.right.dealloc(true);
             }
             if !self.item.is_null() {
-                unsafe {
-                    self.item.drop_in_place();
-                    // internal::dealloc::value(self.item);
-                    self.item = internal::null::value();
-                }
+                self.item.dealloc(false);
             }
         }
     }
 
     pub fn swap_item(&mut self, other: &mut Node<'c>) {
-        let item = other.item;
-        other.item = self.item;
-        self.item = item;
+        self.item = unsafe {
+            let item = other.item.propagate();
+            other.item = self.item.propagate();
+            item
+        };
     }
 }
-
 
 pub fn subtree_delete<'c>(node: &mut Node<'c>) {
     if node.leaf() {
         node.decr_ref();
-        if node.parent.is_null() {
-            unreachable!("leaf node {} should have a parent", node);
-        }
-        unsafe {
-            let mut parent = node.parent.inner_mut();
-            let delete_left = if let Some(parents_left_child) = parent.left() {
-                parents_left_child == node
-            } else {
-                false
-            };
-            if delete_left {
-                parent.left.dealloc(true);
-                parent.left = UniquePointer::null();
-            } else {
-                parent.right.dealloc(true);
-                parent.right = UniquePointer::null();
+        if node.parent.is_not_null() {
+            unsafe {
+                let mut parent = node.parent.inner_mut();
+                let delete_left = if let Some(parents_left_child) = parent.left() {
+                    parents_left_child == node
+                } else {
+                    false
+                };
+                if delete_left {
+                    parent.left.dealloc(true);
+                    parent.left = UniquePointer::null();
+                } else {
+                    parent.right.dealloc(true);
+                    parent.right = UniquePointer::null();
+                }
             }
+            node.parent.dealloc(true);
+        } else {
+            // unreachable!("leaf node {} should have a parent", node);
         }
         node.refs.reset();
-        node.parent.dealloc(true);
-        // node.parent = UniquePointer::<'c, Node<'c>>::null();
-        node.dealloc();
+        node.parent = UniquePointer::<'c, Node<'c>>::null();
+        // node.dealloc();
         return;
     } else {
         let mut predecessor = node.predecessor_mut();
@@ -544,8 +540,7 @@ impl<'c> Node<'c> {
 
 impl<'c> PartialEq<Node<'c>> for Node<'c> {
     fn eq(&self, other: &Node<'c>) -> bool {
-        if self.item_eq(other)
-        {
+        if self.item_eq(other) {
             let eq = self.value().unwrap_or_default() == other.value().unwrap_or_default();
             eq
         } else {
@@ -584,31 +579,19 @@ impl<'c> Clone for Node<'c> {
         node.refs = self.refs.clone();
         if self.parent.is_not_null() {
             node.parent = self.parent.clone();
-            // #[rustfmt::skip]
-            // node.parent.set_as_copy_of_mut_ptr(self.parent.cast_mut(), *self.parent.peek_ref().refs, self.parent.orig_addr());
         }
         if self.left.is_not_null() {
             node.left = self.left.clone();
-            // #[rustfmt::skip]
-            // node.left.set_as_copy_of_mut_ptr(self.left.cast_mut(), *self.left.peek_ref().refs, self.left.orig_addr());
         }
         if self.right.is_not_null() {
             node.right = self.right.clone();
-            // #[rustfmt::skip]
-            // node.right.set_as_copy_of_mut_ptr(self.right.cast_mut(), *self.right.peek_ref().refs, self.right.orig_addr());
         }
         if !self.item.is_null() {
-            unsafe {
-                let item = internal::alloc::value();
-                item.write_volatile(self.item.read_volatile());
-                node.item = item;
-            }
+            node.item = self.item.clone();
         }
         node
     }
 }
-
-
 
 impl<'c> AsRef<Node<'c>> for Node<'c> {
     fn as_ref(&self) -> &'c Node<'c> {

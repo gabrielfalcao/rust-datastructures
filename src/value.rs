@@ -28,8 +28,7 @@ impl<'c> Value<'_> {
 }
 
 impl<'c> Drop for Value<'c> {
-    fn drop(&mut self) {
-    }
+    fn drop(&mut self) {}
 }
 
 impl std::fmt::Display for Value<'_> {
@@ -113,7 +112,6 @@ impl<'c> PartialEq<&Value<'c>> for Value<'c> {
         self == other
     }
 }
-
 
 impl<'c> PartialEq<&mut Value<'c>> for Value<'c> {
     fn eq(&self, other: &&mut Value<'c>) -> bool {

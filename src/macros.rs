@@ -146,9 +146,6 @@ macro_rules! location {
     };
 }
 
-
-
-
 #[macro_export]
 macro_rules! warn {
     ($text:literal) => {{
@@ -179,7 +176,6 @@ macro_rules! warn {
         $crate::warn!("")
     }};
 }
-
 
 #[macro_export]
 macro_rules! warn_inv {

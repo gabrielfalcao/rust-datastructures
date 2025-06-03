@@ -20,7 +20,6 @@ fn test_node_nil() {
     };
     assert_equal!(node, expected);
     assert_equal!(node, Node::nil());
-
 }
 
 #[test]
@@ -116,8 +115,6 @@ fn test_set_right() {
     assert_equal!(right, expected);
 }
 
-
-
 #[test]
 fn test_clone_null() {
     let node = Node::nil();
@@ -132,7 +129,6 @@ fn test_clone_non_null() {
 
     node.set_left(&mut left);
     node.set_right(&mut right);
-
 
     assert_equal!(node.parent(), None);
     assert_equal!(node.is_nil(), false);

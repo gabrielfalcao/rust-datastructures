@@ -7,12 +7,12 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{color, decr_ref_nonzero, internal, step, warn, RefCounter};
 
-/// `UniquePointer` is an experimental data structure that makes
+/// [`UniquePointer`] is an experimental data structure that makes
 /// extensive use of unsafe rust to provide a shared pointer
 /// throughout the runtime of a rust library or application as
 /// transparently as possible.
 ///
-/// `UniquePointer` is designed for practicing the design of basic
+/// [`UniquePointer`] is designed for practicing the design of basic
 /// computer science data-structures (e.g.: Binary Trees, Linked Lists
 /// etc) such that the concept of pointer is as close to C as possible
 /// in terms of developer experience and so when a CS teacher speaks
@@ -20,7 +20,7 @@ use crate::{color, decr_ref_nonzero, internal, step, warn, RefCounter};
 /// data-structures knowing that cloning their data-structures also
 /// means cloning the pointers transparently.
 ///
-/// In fact, the author designed `UniquePointer` while studying the
+/// In fact, the author designed [`UniquePointer`] while studying the
 /// MIT CourseWare material of professor Erik Demaine in addition to
 /// studying lisp "cons" cells.
 ///
@@ -28,9 +28,9 @@ use crate::{color, decr_ref_nonzero, internal, step, warn, RefCounter};
 /// **experimental** data-structure designed primarily as a
 /// building-block of other data-structures in rust.
 ///
-/// `UniquePointer` provides the methods `cast_mut` and `cast_const`
+/// [`UniquePointer`] provides the methods [`cast_mut`] and `cast_const`
 /// not unlike those of raw pointers, and also implements the methods
-/// `as_ref` and `as_mut` with a signature compatible with that of the
+/// [`as_ref`] and [`as_mut`] with a signature compatible with that of the
 /// [`AsRef`] and [`AsMut`] traits such that users of raw pointers can
 /// migrate to [`UniquePointer`] without much difficulty.
 ///
@@ -74,6 +74,8 @@ use crate::{color, decr_ref_nonzero, internal, step, warn, RefCounter};
 /// assert_eq!(value.as_ref(), Some(&"string"));
 /// ```
 ///
+/// > # NOTE: **[`UniquePointer`] IS NOT THREAD SAFE** (yet)
+///
 pub struct UniquePointer<'c, T> {
     mut_addr: usize,
     mut_ptr: *mut T,
@@ -86,7 +88,7 @@ pub struct UniquePointer<'c, T> {
 }
 
 impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
-    /// `null` creates a NULL `UniquePointer` ready to be written via [`write`].
+    /// `null` creates a NULL [`UniquePointer`] ready to be written via [`write`].
     pub fn null() -> UniquePointer<'c, T> {
         UniquePointer {
             mut_addr: 0,
@@ -100,16 +102,65 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         }
     }
 
+    /// `from_ref` creates a new [`UniquePointer`] by effectively
+    /// reading the value from [`reference`] after extending its
+    /// lifetime from `'r` to `'c`
+    ///
+    pub fn from_ref<'r>(reference: &'r T) -> UniquePointer<'c, T> {
+        let reference = unsafe { std::mem::transmute::<&'r T, &'c T>(reference) };
+        let mut up = UniquePointer::<'c, T>::null();
+        up.write_ref(reference);
+        up
+    }
+
+    /// `from_ref_mut` creates a new [`UniquePointer`] by effectively
+    /// reading the value from [`mutable_reference`] after extending its
+    /// lifetime from `'r` to `'c`
+    ///
+    pub fn from_ref_mut<'r>(mutable_reference: &'r mut T) -> UniquePointer<'c, T> {
+        let mut mutable_reference =
+            unsafe { std::mem::transmute::<&'r mut T, &'c mut T>(mutable_reference) };
+        let mut up = UniquePointer::<'c, T>::null();
+        up.write_ref_mut(mutable_reference);
+        up
+    }
+
     /// `copy` is designed for use within the [`Clone`] implementation
     /// of `UniquePointer`.
     ///
-    /// The `copy` method creates a NULL `UniquePointer` flagged as
-    /// `is_copy` such that a double-free does not happen in
+    /// The [`copy`] method creates a NULL [`UniquePointer`] flagged as
+    /// [`is_copy`] such that a double-free does not happen in
     /// [`dealloc`].
     fn copy() -> UniquePointer<'c, T> {
         let mut up = UniquePointer::<'c, T>::null();
         up.is_copy = true;
         up
+    }
+
+    /// `propagate` creates a copy of a [`UniquePointer`] which is not
+    /// a copy in the sense that: - [`is_copy`] returns true; and -
+    /// [`orig_addr`] points to the same memory address
+    ///
+    /// Because of that rationale a double-free occurs if there are
+    /// two or more "containers" (i.e.: structs, enums, and/or unions)
+    /// implementing [`Drop`] and holding the same propagated
+    /// [`UniquePointer`] instance. For this reason [`propagate`] is
+    /// unsafe.
+    ///
+    /// [`propagate`] can be relatively observed as a drop-in
+    /// replacement for [`clone`] when, for instance, swapping
+    /// [`UniquePointer`] "instances" between instances of
+    /// `UniquePointer`-containing (structs, enums and/or unions) is
+    /// desired.
+    pub unsafe fn propagate(&self) -> UniquePointer<'c, T> {
+        self.incr_ref();
+        let mut back_node = UniquePointer::<T>::null();
+        back_node.set_mut_ptr(self.mut_ptr, false);
+        back_node.refs = self.refs.clone();
+        back_node.orig_addr = self.orig_addr;
+        back_node.alloc = self.alloc;
+        back_node.written = self.written;
+        back_node
     }
 
     pub fn copy_from_ref(data: &T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
@@ -118,23 +169,6 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     pub fn copy_from_mut_ptr(ptr: *mut T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
-        UniquePointer::from_mut_ptr(ptr, refs, orig_addr, true)
-    }
-
-    pub fn noncopy_from_mut_ptr(
-        ptr: *mut T,
-        refs: usize,
-        orig_addr: usize,
-    ) -> UniquePointer<'c, T> {
-        UniquePointer::from_mut_ptr(ptr, refs, orig_addr, false)
-    }
-
-    fn from_mut_ptr<'r>(
-        ptr: *mut T,
-        refs: usize,
-        orig_addr: usize,
-        is_copy: bool,
-    ) -> UniquePointer<'c, T> {
         let addr = UniquePointer::provenance_of_mut_ptr(ptr);
         let refs = RefCounter::from(refs);
         UniquePointer {
@@ -144,21 +178,9 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             refs: refs,
             written: true,
             alloc: true,
-            is_copy: false,
+            is_copy: true,
             _marker: PhantomData,
         }
-    }
-
-    pub fn set_as_copy_of_mut_ptr<'r>(&mut self, ptr: *mut T, refs: usize, orig_addr: usize) {
-        // self.dealloc(true);
-        let addr = UniquePointer::provenance_of_mut_ptr(ptr);
-        self.mut_addr = addr;
-        self.mut_ptr = ptr;
-        self.refs = RefCounter::from(refs);
-        self.orig_addr = orig_addr;
-        self.written = true;
-        self.alloc = true;
-        self.is_copy = true;
     }
 
     /// `addr` returns the value containing both the provenance and
@@ -167,7 +189,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         self.mut_addr
     }
 
-    /// `orig_addr` returns the address of the value written into `UniquePointer` via [`write`]
+    /// `orig_addr` returns the address of the value written into [`UniquePointer`] via [`write`]
     pub fn orig_addr(&self) -> usize {
         self.orig_addr
     }
@@ -177,7 +199,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         *self.refs
     }
 
-    /// `is_null` returns true if the `UniquePointer` is NULL.
+    /// `is_null` returns true if the [`UniquePointer`] is NULL.
     pub fn is_null(&self) -> bool {
         let mut_is_null = self.mut_ptr.is_null();
         if mut_is_null {
@@ -189,40 +211,48 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         is_null
     }
 
-    /// `is_not_null` returns true if the `UniquePointer` is not
-    /// NULL. `is_not_null` is a idiomatic shortcut to negating a call
+    /// `is_not_null` returns true if the [`UniquePointer`] is not
+    /// NULL. [`is_not_null`] is a idiomatic shortcut to negating a call
     /// to [`is_null`] such that the negation is less likely to be
     /// clearly visible.
     pub fn is_not_null(&self) -> bool {
         !self.is_null()
     }
 
-    /// `is_not_copy` returns true if the `UniquePointer` is not a
-    /// copy. `is_not_copy` is a idiomatic shortcut to negating a call
+    /// `is_not_copy` returns true if the [`UniquePointer`] is not a
+    /// copy. [`is_not_copy`] is a idiomatic shortcut to negating a call
     /// to [`is_copy`] such that the negation is less likely to be
     /// clearly visible.
     pub fn is_not_copy(&self) -> bool {
         !self.is_copy
     }
 
-    /// `can_dealloc` returns true if the `UniquePointer` is not NULL
+    /// `can_dealloc` returns true if the [`UniquePointer`] is not NULL
     /// and is not flagged as a copy, meaning it can be deallocated
     /// without concern for double-free.
     pub fn can_dealloc(&self) -> bool {
         self.alloc && self.is_not_copy() && self.is_not_null()
     }
 
-    /// `is_allocated` returns true if the `UniquePointer` has been
+    /// `is_allocated` returns true if the [`UniquePointer`] has been
     /// allocated and therefore is no longer a NULL pointer.
     pub fn is_allocated(&self) -> bool {
         let is_allocated = self.is_not_null() && self.alloc;
         is_allocated
     }
 
-    /// `is_written` returns true if the `UniquePointer` has been written to
+    /// `is_written` returns true if the [`UniquePointer`] has been written to
     pub fn is_written(&self) -> bool {
         let is_written = self.is_allocated() && self.written;
         is_written
+    }
+
+    /// `is_copy` returns true if a [`UniquePointer`] is a "copy" of
+    /// another [`UniquePointer`] in the sense that dropping or
+    /// "hard-deallocating" said [`UniquePointer`] does not incur a
+    /// double-free.
+    pub fn is_copy(&self) -> bool {
+        self.is_copy
     }
 
     /// `alloc` allocates memory in a null `UniquePointer`
@@ -268,7 +298,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         });
     }
 
-    /// `write_ref_mut` takes a read-only reference to a value and
+    /// `write_ref` takes a read-only reference to a value and
     /// writes to a `UniquePointer`
     pub fn write_ref(&mut self, data: &T) {
         self.write(unsafe {
@@ -361,16 +391,19 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
 
     /// `dealloc` deallocates a [`UniquePointer`].
     ///
-    /// The `soft` boolean argument indicates whether the
-    /// `UniquePointer` should have its reference count decremented or
+    /// The [`soft`] boolean argument indicates whether the
+    /// [`UniquePointer`] should have its reference count decremented or
     /// deallocated immediately.
     ///
-    /// When `soft=true` calls to `dealloc` only really deallocate
-    /// memory when the reference gets down to zero, until then each
-    /// `dealloc(true)` call simply decrements the reference count.
+    /// During "soft" deallocation (`soft=true`) calls to `dealloc`
+    /// only really deallocate memory when the reference gets down to
+    /// zero, until then each `dealloc(true)` call simply decrements
+    /// the reference count.
     ///
-    /// Conversely, when `soft: false` a UniquePointer gets
-    /// immediately deallocated, leading to Undefined Behavior.
+    /// Conversely during "hard" deallocation (`soft=false`) the
+    /// UniquePointer in question gets immediately deallocated,
+    /// possibly incurring a double-free or causing Undefined
+    /// Behavior.
     pub fn dealloc(&mut self, soft: bool) {
         if self.is_null() {
             return;
@@ -382,18 +415,15 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         }
     }
 
-    pub fn set_ptr(&mut self, ptr: &T) {
-        self.set_mut_ptr((ptr as *const T).cast_mut(), false);
-        self.written = true;
-        self.alloc = true;
-        self.is_copy = true;
-    }
-
     /// `set_mut_ptr` sets the internal raw pointer of a `UniquePointer`.
     ///
     /// Prior to setting the new pointer, it checks whether the
     /// internal pointer is non-null and matches its provenance
-    /// address, such that cloned values do not perform a double-free.
+    /// address, such that "copies" do not incur a double-free.
+    ///
+    /// When [`ptr`] is a NULL pointer and the internal pointer of
+    /// [`UniquePointer`] in question is NOT NULL, then it is
+    /// deallocated prior to setting it to NULL.
     fn set_mut_ptr(&mut self, ptr: *mut T, dealloc: bool) {
         if ptr.is_null() {
             if dealloc && self.can_dealloc() {
@@ -421,76 +451,87 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         self.mut_addr = addr;
     }
 
+    /// `free` is internally used by [`dealloc`] when the number of
+    /// references gets down to zero in a "soft" deallocation and
+    /// immediately in a "hard" deallocation.
+    ///
+    /// See [`dealloc`] for more information regarding the difference
+    /// between "soft" and "hard" deallocation.
     fn free(&mut self) {
         if !self.is_null() {
             self.set_mut_ptr(std::ptr::null_mut::<T>(), false);
+            self.refs.dealloc();
         }
-        self.refs.reset();
         self.alloc = false;
         self.written = false;
-    }
-
-    pub fn from_ref<'r>(data: &'r T) -> UniquePointer<'c, T> {
-        let data = unsafe { std::mem::transmute::<&'r T, &'c T>(data) };
-        let mut up = UniquePointer::<'c, T>::null();
-        up.write_ref(data);
-        up
-    }
-
-    pub fn from_ref_mut<'r>(data: &'r mut T) -> UniquePointer<'c, T> {
-        let mut data = unsafe { std::mem::transmute::<&'r mut T, &'c mut T>(data) };
-        let mut up = UniquePointer::<'c, T>::null();
-        up.write_ref_mut(data);
-        up
     }
 }
 
 impl<T: Sized> UniquePointer<'_, T> {
+    /// `provenance_of_const_ptr` is a helper method that returns the
+    /// address and provenance of a const pointer
     pub fn provenance_of_const_ptr(ptr: *const T) -> usize {
         ptr.expose_provenance()
     }
 
+    /// `provenance_of_mut_ptr` is a helper method that returns the
+    /// address and provenance of a mut pointer
     pub fn provenance_of_mut_ptr(ptr: *mut T) -> usize {
         ptr.expose_provenance()
     }
 
+    /// `provenance_of_ref` is a helper method that returns the
+    /// address and provenance of a reference
     pub fn provenance_of_ref(ptr: &T) -> usize {
         (&raw const ptr).expose_provenance()
     }
 
+    /// `provenance_of_mut` is a helper method that returns the
+    /// address and provenance of a mutable reference
     pub fn provenance_of_mut(mut ptr: &mut T) -> usize {
         (&raw mut ptr).expose_provenance()
     }
 
+    /// `raw_addr_of_const_ptr` is a helper method that returns the
+    /// address (as opposed to the provenance) of a const pointer
     pub fn raw_addr_of_const_ptr(ptr: *const T) -> usize {
         ptr.addr()
     }
 
+    /// `raw_addr_of_mut_ptr` is a helper method that returns the
+    /// address (as opposed to the provenance) of a mut pointer
     fn raw_addr_of_mut_ptr(ptr: *mut T) -> usize {
         ptr.addr()
     }
 
+    /// `raw_addr_of_ref` is a helper method that returns the address
+    /// (as opposed to the provenance) of the underlying `*const`
+    /// pointer of a reference
     pub fn raw_addr_of_ref(ptr: &T) -> usize {
         std::ptr::from_ref(ptr).addr()
     }
 
+    /// `raw_addr_of_ref` is a helper method that returns the address
+    /// (as opposed to the provenance) of the underlying `*mut`
+    /// pointer of a mutable reference
     pub fn raw_addr_of_mut(mut ptr: &mut T) -> usize {
         std::ptr::from_mut(ptr).addr()
     }
 }
 
 impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
-    fn meta_mut(&'c self) -> &'c mut UniquePointer<'c, T> {
-        let ptr = self.meta_mut_ptr();
+    /// `meta_mut` is an unsafe method that turns a "self reference"
+    /// into a mutable "self reference"
+    unsafe fn meta_mut(&'c self) -> &'c mut UniquePointer<'c, T> {
         unsafe {
+            let ptr = self.meta_mut_ptr();
             let mut up = &mut *ptr;
             std::mem::transmute::<&mut UniquePointer<'c, T>, &'c mut UniquePointer<'c, T>>(up)
         }
     }
-}
-#[allow(invalid_reference_casting)]
-impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
-    fn meta_mut_ptr(&self) -> *mut UniquePointer<'c, T> {
+
+    /// `meta_mut_ptr` is an unsafe method that turns a [`*mut UniquePointer`] from a "self reference"
+    unsafe fn meta_mut_ptr(&self) -> *mut UniquePointer<'c, T> {
         let ptr = self as *const UniquePointer<'c, T>;
         unsafe {
             let ptr: *mut UniquePointer<'c, T> =
@@ -498,14 +539,16 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             ptr
         }
     }
-
+}
+#[allow(invalid_reference_casting)]
+impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     fn incr_ref(&self) {
         if self.is_null() {
             // panic!("null {:#?}", self);
             return;
         }
-        let ptr = self.meta_mut_ptr();
         unsafe {
+            let ptr = self.meta_mut_ptr();
             let mut up = &mut *ptr;
             up.refs += 1;
         }
@@ -516,8 +559,8 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             panic!("refs {}", self.refs);
             return;
         }
-        let ptr = self.meta_mut_ptr();
         unsafe {
+            let ptr = self.meta_mut_ptr();
             let mut up = &mut *ptr;
             up.refs -= 1;
         }
@@ -562,7 +605,7 @@ impl<'c, T: Sized + 'c> From<T> for UniquePointer<'c, T> {
         up
     }
 }
-/// The [`Clone`] implementation of `UniquePointer` is special because
+/// The [`Clone`] implementation of [`UniquePointer`] is special because
 /// it flags cloned values as clones such that a double-free doesn not
 /// occur.
 impl<'c, T: Sized + 'c> Clone for UniquePointer<'c, T> {

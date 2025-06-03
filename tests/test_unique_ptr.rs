@@ -7,7 +7,6 @@ pub struct Data<'t> {
     pub value: UniquePointer<'t, Value<'t>>,
 }
 
-
 #[test]
 fn test_unique_pointer_clone() {
     let mut data = Data {
