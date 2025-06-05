@@ -4,7 +4,7 @@ use k9::{assert_equal, assert_greater_than};
 
 #[derive(Clone, Debug)]
 pub struct Data<'t> {
-    pub value: UniquePointer<'t, Value<'t>>,
+    pub value: UniquePointer<Value<'t>>,
 }
 
 #[test]
@@ -167,8 +167,7 @@ fn test_unique_pointer_from_ref_copy() {
 
 #[test]
 fn test_unique_pointer_from_mut_clone<'t>() {
-    let mut value: UniquePointer<'t, Value> =
-        UniquePointer::from_ref_mut(&mut Value::from("string"));
+    let mut value: UniquePointer<Value> = UniquePointer::from_ref_mut(&mut Value::from("string"));
 
     assert_equal!(value.is_null(), false);
     assert_equal!(value.is_allocated(), true);
@@ -192,19 +191,19 @@ fn test_unique_pointer_inner_mut() {
     assert_greater_than!(data.value.addr(), 0, "address should not be null");
     assert_equal!(data.value.is_written(), true);
     assert_equal!(data.value.inner_mut(), &mut Value::from("string"));
-    assert_equal!(data.value.refs(), 3);
+    assert_equal!(data.value.refs(), 2);
     {
         let mut value = &*data.value;
         assert_equal!(value, &mut Value::from("string"));
-        assert_equal!(data.value.refs(), 5);
+        assert_equal!(data.value.refs(), 4);
     }
-    assert_equal!(data.value.refs(), 5);
+    assert_equal!(data.value.refs(), 4);
     {
         let value = &*data.value;
         assert_equal!(value, &Value::from("string"));
-        assert_equal!(data.value.refs(), 7);
+        assert_equal!(data.value.refs(), 6);
     }
-    assert_equal!(data.value.refs(), 7);
+    assert_equal!(data.value.refs(), 6);
 
     assert_equal!(data.value.read(), Value::from("string"));
     assert_equal!(data.value.as_ref(), Some(&Value::from("string")));
@@ -242,6 +241,17 @@ fn test_unique_pointer_from_ref() {
     assert_equal!(data.value.as_ref(), Some(&Value::from("string")));
     assert_equal!(data.value.as_mut(), Some(&mut Value::from("string")));
 }
+
+#[test]
+fn test_unique_pointer_string_slice<'a>() {
+    let string = UniquePointer::<&'a str>::from("string");
+    assert_equal!(string.refs(), 1);
+    assert_equal!(string.read(), "string");
+    assert_equal!(string.refs(), 1);
+    assert_equal!(string.read(), "string");
+    assert_equal!(string.refs(), 1);
+}
+
 
 // #[test]
 // fn test_unique_pointer_from_ref_outer_data_structure<'t>() {

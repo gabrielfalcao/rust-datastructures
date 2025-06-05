@@ -59,10 +59,10 @@ use crate::{color, decr_ref_nonzero, internal, step, warn, RefCounter};
 /// ```
 /// use ds::UniquePointer;
 ///
-/// fn create_unique_pointer<'a>() -> UniquePointer<'a, &'a str> {
+/// fn create_unique_pointer() -> UniquePointer<&'a str> {
 ///     UniquePointer::from("string")
 /// }
-/// let mut value: UniquePointer<'_, &'_ str> = create_unique_pointer();
+/// let mut value: UniquePointer<&'_ str> = create_unique_pointer();
 ///
 /// assert_eq!(value.is_null(), false);
 /// assert_eq!(value.is_allocated(), true);
@@ -76,7 +76,7 @@ use crate::{color, decr_ref_nonzero, internal, step, warn, RefCounter};
 ///
 /// > # NOTE: **[`UniquePointer`] IS NOT THREAD SAFE** (yet)
 ///
-pub struct UniquePointer<'c, T> {
+pub struct UniquePointer<T> {
     mut_addr: usize,
     mut_ptr: *mut T,
     orig_addr: usize,
@@ -84,12 +84,11 @@ pub struct UniquePointer<'c, T> {
     alloc: bool,
     is_copy: bool,
     written: bool,
-    _marker: PhantomData<&'c T>,
 }
 
-impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
+impl<'c, T: Sized + 'c> UniquePointer<T> {
     /// `null` creates a NULL [`UniquePointer`] ready to be written via [`write`].
-    pub fn null() -> UniquePointer<'c, T> {
+    pub fn null() -> UniquePointer<T> {
         UniquePointer {
             mut_addr: 0,
             mut_ptr: std::ptr::null_mut::<T>(),
@@ -98,7 +97,6 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             written: false,
             alloc: false,
             is_copy: false,
-            _marker: PhantomData,
         }
     }
 
@@ -106,9 +104,9 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     /// reading the value from [`reference`] after extending its
     /// lifetime from `'r` to `'c`
     ///
-    pub fn from_ref<'r>(reference: &'r T) -> UniquePointer<'c, T> {
+    pub fn from_ref<'r>(reference: &'r T) -> UniquePointer<T> {
         let reference = unsafe { std::mem::transmute::<&'r T, &'c T>(reference) };
-        let mut up = UniquePointer::<'c, T>::null();
+        let mut up = UniquePointer::<T>::null();
         up.write_ref(reference);
         up
     }
@@ -117,10 +115,10 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     /// reading the value from [`mutable_reference`] after extending its
     /// lifetime from `'r` to `'c`
     ///
-    pub fn from_ref_mut<'r>(mutable_reference: &'r mut T) -> UniquePointer<'c, T> {
+    pub fn from_ref_mut<'r>(mutable_reference: &'r mut T) -> UniquePointer<T> {
         let mut mutable_reference =
             unsafe { std::mem::transmute::<&'r mut T, &'c mut T>(mutable_reference) };
-        let mut up = UniquePointer::<'c, T>::null();
+        let mut up = UniquePointer::<T>::null();
         up.write_ref_mut(mutable_reference);
         up
     }
@@ -131,8 +129,8 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     /// The [`copy`] method creates a NULL [`UniquePointer`] flagged as
     /// [`is_copy`] such that a double-free does not happen in
     /// [`dealloc`].
-    fn copy() -> UniquePointer<'c, T> {
-        let mut up = UniquePointer::<'c, T>::null();
+    fn copy() -> UniquePointer<T> {
+        let mut up = UniquePointer::<T>::null();
         up.is_copy = true;
         up
     }
@@ -152,7 +150,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     /// [`UniquePointer`] "instances" between instances of
     /// `UniquePointer`-containing (structs, enums and/or unions) is
     /// desired.
-    pub unsafe fn propagate(&self) -> UniquePointer<'c, T> {
+    pub unsafe fn propagate(&self) -> UniquePointer<T> {
         self.incr_ref();
         let mut back_node = UniquePointer::<T>::null();
         back_node.set_mut_ptr(self.mut_ptr, false);
@@ -163,12 +161,12 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         back_node
     }
 
-    pub fn copy_from_ref(data: &T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
+    pub fn copy_from_ref(data: &T, refs: usize, orig_addr: usize) -> UniquePointer<T> {
         let ptr = (data as *const T).cast_mut();
         UniquePointer::copy_from_mut_ptr(ptr, refs, orig_addr)
     }
 
-    pub fn copy_from_mut_ptr(ptr: *mut T, refs: usize, orig_addr: usize) -> UniquePointer<'c, T> {
+    pub fn copy_from_mut_ptr(ptr: *mut T, refs: usize, orig_addr: usize) -> UniquePointer<T> {
         let addr = UniquePointer::provenance_of_mut_ptr(ptr);
         let refs = RefCounter::from(refs);
         UniquePointer {
@@ -179,7 +177,6 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             written: true,
             alloc: true,
             is_copy: true,
-            _marker: PhantomData,
         }
     }
 
@@ -273,20 +270,31 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         };
         self.set_mut_ptr(mut_ptr, false);
         self.alloc = true;
-        self.refs.incr();
+        // step!("self.incr_ref()");
+        // self.incr_ref();
     }
 
     /// `write` allocates memory and writes the given value into the
     /// newly allocated area.
     pub fn write(&mut self, data: T) {
-        let orig_addr = UniquePointer::<'c, T>::raw_addr_of_ref(&data);
+        let orig_addr = UniquePointer::<T>::raw_addr_of_ref(&data);
         self.alloc();
 
         unsafe {
             self.mut_ptr.write(data);
         }
+
         self.written = true;
         self.orig_addr = orig_addr;
+    }
+
+    /// `read` increments reference count and returns the internal value `T`.
+    pub fn read(&self) -> T {
+        if !self.is_written() {
+            panic!("{:#?} not written", self);
+        }
+        let mut ptr = self.cast_const();
+        unsafe { ptr.read() }
     }
 
     /// `write_ref_mut` takes a mutable reference to a value and
@@ -305,16 +313,6 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
             let ptr = data as *const T;
             ptr.read()
         });
-    }
-
-    /// `read` increments reference count and returns the internal value `T`.
-    pub fn read(&self) -> T {
-        if !self.is_written() {
-            panic!("{:#?} not written", self);
-        }
-        self.incr_ref();
-        let mut ptr = self.cast_const();
-        unsafe { ptr.read() }
     }
 
     /// `cast_mut` is a compatibility API to a raw mut pointer's [`pointer::cast_mut`].
@@ -365,7 +363,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     /// `as_ref` is a compatibility layer to the [`AsRef`] implementation in raw pointers
-    pub fn as_ref<'a>(&self) -> Option<&'a T> {
+    pub fn as_ref(&self) -> Option<&'c T> {
         self.incr_ref();
         if self.is_written() {
             Some(self.inner_ref())
@@ -375,7 +373,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 
     /// `as_mut` is a compatibility layer to the [`AsMut`] implementation in raw pointers
-    pub fn as_mut<'a>(&mut self) -> Option<&'a mut T> {
+    pub fn as_mut(&mut self) -> Option<&'c mut T> {
         self.incr_ref();
         if self.is_written() {
             Some(self.inner_mut())
@@ -437,7 +435,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
 
             self.set_mut_addr(0);
         } else {
-            self.set_mut_addr(UniquePointer::<'c, T>::provenance_of_mut_ptr(ptr));
+            self.set_mut_addr(UniquePointer::<T>::provenance_of_mut_ptr(ptr));
         }
         self.mut_ptr = ptr;
     }
@@ -462,7 +460,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
     }
 }
 
-impl<T: Sized> UniquePointer<'_, T> {
+impl<T: Sized> UniquePointer<T> {
     /// `provenance_of_const_ptr` is a helper method that returns the
     /// address and provenance of a const pointer
     pub fn provenance_of_const_ptr(ptr: *const T) -> usize {
@@ -514,29 +512,29 @@ impl<T: Sized> UniquePointer<'_, T> {
     }
 }
 
-impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
+impl<'c, T: Sized + 'c> UniquePointer<T> {
     /// `meta_mut` is an unsafe method that turns a "self reference"
     /// into a mutable "self reference"
-    unsafe fn meta_mut(&'c self) -> &'c mut UniquePointer<'c, T> {
+    unsafe fn meta_mut(&'c self) -> &'c mut UniquePointer<T> {
         unsafe {
             let ptr = self.meta_mut_ptr();
             let mut up = &mut *ptr;
-            std::mem::transmute::<&mut UniquePointer<'c, T>, &'c mut UniquePointer<'c, T>>(up)
+            std::mem::transmute::<&mut UniquePointer<T>, &'c mut UniquePointer<T>>(up)
         }
     }
 
     /// `meta_mut_ptr` is an unsafe method that turns a [`*mut UniquePointer`] from a "self reference"
-    unsafe fn meta_mut_ptr(&self) -> *mut UniquePointer<'c, T> {
-        let ptr = self as *const UniquePointer<'c, T>;
+    unsafe fn meta_mut_ptr(&self) -> *mut UniquePointer<T> {
+        let ptr = self as *const UniquePointer<T>;
         unsafe {
-            let ptr: *mut UniquePointer<'c, T> =
-                std::mem::transmute::<*const UniquePointer<'c, T>, *mut UniquePointer<'c, T>>(ptr);
+            let ptr: *mut UniquePointer<T> =
+                std::mem::transmute::<*const UniquePointer<T>, *mut UniquePointer<T>>(ptr);
             ptr
         }
     }
 }
 #[allow(invalid_reference_casting)]
-impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
+impl<T: Sized> UniquePointer<T> {
     fn incr_ref(&self) {
         if self.is_null() {
             // panic!("null {:#?}", self);
@@ -545,7 +543,7 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         unsafe {
             let ptr = self.meta_mut_ptr();
             let mut up = &mut *ptr;
-            up.refs += 1;
+            up.refs.incr();
         }
     }
 
@@ -557,11 +555,11 @@ impl<'c, T: Sized + 'c> UniquePointer<'c, T> {
         unsafe {
             let ptr = self.meta_mut_ptr();
             let mut up = &mut *ptr;
-            up.refs -= 1;
+            up.refs.decr();
         }
     }
 }
-impl<'c, T: Sized + 'c> Deref for UniquePointer<'c, T> {
+impl<T: Sized> Deref for UniquePointer<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -570,14 +568,14 @@ impl<'c, T: Sized + 'c> Deref for UniquePointer<'c, T> {
     }
 }
 
-impl<'c, T: Sized + 'c> DerefMut for UniquePointer<'c, T> {
+impl<T: Sized> DerefMut for UniquePointer<T> {
     fn deref_mut(&mut self) -> &mut T {
         self.incr_ref();
         self.inner_mut()
     }
 }
 
-impl<'c, T: Sized + 'c> Drop for UniquePointer<'c, T> {
+impl<T: Sized> Drop for UniquePointer<T> {
     fn drop(&mut self) {
         // if self.is_written() {
         //     self.dealloc(true);
@@ -585,18 +583,18 @@ impl<'c, T: Sized + 'c> Drop for UniquePointer<'c, T> {
     }
 }
 
-impl<'c, T: Sized + 'c> From<&T> for UniquePointer<'c, T> {
-    fn from(data: &T) -> UniquePointer<'c, T> {
+impl<T: Sized> From<&T> for UniquePointer<T> {
+    fn from(data: &T) -> UniquePointer<T> {
         UniquePointer::<T>::from_ref(data)
     }
 }
-impl<'c, T: Sized + 'c> From<&mut T> for UniquePointer<'c, T> {
-    fn from(data: &mut T) -> UniquePointer<'c, T> {
+impl<T: Sized> From<&mut T> for UniquePointer<T> {
+    fn from(data: &mut T) -> UniquePointer<T> {
         UniquePointer::<T>::from_ref_mut(data)
     }
 }
-impl<'c, T: Sized + 'c> From<T> for UniquePointer<'c, T> {
-    fn from(data: T) -> UniquePointer<'c, T> {
+impl<T: Sized> From<T> for UniquePointer<T> {
+    fn from(data: T) -> UniquePointer<T> {
         let mut up = UniquePointer::<T>::null();
         up.write(data);
         up
@@ -605,8 +603,8 @@ impl<'c, T: Sized + 'c> From<T> for UniquePointer<'c, T> {
 /// The [`Clone`] implementation of [`UniquePointer`] is special because
 /// it flags cloned values as clones such that a double-free doesn not
 /// occur.
-impl<'c, T: Sized + 'c> Clone for UniquePointer<'c, T> {
-    fn clone(&self) -> UniquePointer<'c, T> {
+impl<T: Sized> Clone for UniquePointer<T> {
+    fn clone(&self) -> UniquePointer<T> {
         self.incr_ref();
         let mut clone = UniquePointer::<T>::copy();
         clone.set_mut_ptr(self.mut_ptr, false);
@@ -617,13 +615,13 @@ impl<'c, T: Sized + 'c> Clone for UniquePointer<'c, T> {
     }
 }
 
-impl<'c, T: Sized + 'c> Pointer for UniquePointer<'c, T> {
+impl<T: Sized> Pointer for UniquePointer<T> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "{:016x}", self.addr())
     }
 }
 
-impl<'c, T: Sized + 'c> Debug for UniquePointer<'c, T> {
+impl<T: Sized> Debug for UniquePointer<T> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(
             f,
@@ -644,58 +642,53 @@ impl<'c, T: Sized + 'c> Debug for UniquePointer<'c, T> {
     }
 }
 
-impl<'t, T: Deref, S: Deref> PartialEq<UniquePointer<'t, S>> for UniquePointer<'t, T>
+impl<T: Deref, S: Deref> PartialEq<UniquePointer<S>> for UniquePointer<T>
 where
     T: PartialEq<S::Target>,
 {
-    fn eq(&self, other: &UniquePointer<'t, S>) -> bool {
+    fn eq(&self, other: &UniquePointer<S>) -> bool {
         T::eq(self, other)
     }
 
-    fn ne(&self, other: &UniquePointer<'t, S>) -> bool {
+    fn ne(&self, other: &UniquePointer<S>) -> bool {
         T::ne(self, other)
     }
 }
 
-impl<'t, T: Deref<Target: Eq> + 't + Eq + PartialEq<<T as Deref>::Target>> Eq
-    for UniquePointer<'t, T>
-{
-}
+impl<T: Deref<Target: Eq> + Eq + PartialEq<<T as Deref>::Target>> Eq for UniquePointer<T> {}
 
-impl<'t, T: Deref, S: Deref> PartialOrd<UniquePointer<'t, S>> for UniquePointer<'t, T>
+impl<T: Deref, S: Deref> PartialOrd<UniquePointer<S>> for UniquePointer<T>
 where
     T: PartialOrd<S::Target>,
 {
-    fn partial_cmp(&self, other: &UniquePointer<'t, S>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &UniquePointer<S>) -> Option<Ordering> {
         T::partial_cmp(self, other)
     }
 
-    fn lt(&self, other: &UniquePointer<'t, S>) -> bool {
+    fn lt(&self, other: &UniquePointer<S>) -> bool {
         T::lt(self, other)
     }
 
-    fn le(&self, other: &UniquePointer<'t, S>) -> bool {
+    fn le(&self, other: &UniquePointer<S>) -> bool {
         T::le(self, other)
     }
 
-    fn gt(&self, other: &UniquePointer<'t, S>) -> bool {
+    fn gt(&self, other: &UniquePointer<S>) -> bool {
         T::gt(self, other)
     }
 
-    fn ge(&self, other: &UniquePointer<'t, S>) -> bool {
+    fn ge(&self, other: &UniquePointer<S>) -> bool {
         T::ge(self, other)
     }
 }
 
-impl<'t, T: Deref<Target: Ord> + 't + Ord + PartialOrd<<T as Deref>::Target>> Ord
-    for UniquePointer<'t, T>
-{
+impl<T: Deref<Target: Ord> + Ord + PartialOrd<<T as Deref>::Target>> Ord for UniquePointer<T> {
     fn cmp(&self, other: &Self) -> Ordering {
         T::cmp(self, other)
     }
 }
 
-impl<'t, T: Deref<Target: Hash> + 't + Hash> Hash for UniquePointer<'t, T> {
+impl<T: Deref<Target: Hash> + Hash> Hash for UniquePointer<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         T::hash(self, state);
     }

@@ -15,20 +15,20 @@ use crate::{
 };
 
 pub struct Node<'c> {
-    pub parent: UniquePointer<'c, Node<'c>>,
-    pub left: UniquePointer<'c, Node<'c>>,
-    pub right: UniquePointer<'c, Node<'c>>,
-    pub item: UniquePointer<'c, Value<'c>>,
+    pub parent: UniquePointer<Node<'c>>,
+    pub left: UniquePointer<Node<'c>>,
+    pub right: UniquePointer<Node<'c>>,
+    pub item: UniquePointer<Value<'c>>,
     refs: RefCounter,
 }
 
 impl<'c> Node<'c> {
     pub fn nil() -> Node<'c> {
         Node {
-            parent: UniquePointer::<'c, Node<'c>>::null(),
-            left: UniquePointer::<'c, Node<'c>>::null(),
-            right: UniquePointer::<'c, Node<'c>>::null(),
-            item: UniquePointer::<'c, Value<'c>>::null(),
+            parent: UniquePointer::<Node<'c>>::null(),
+            left: UniquePointer::<Node<'c>>::null(),
+            right: UniquePointer::<Node<'c>>::null(),
+            item: UniquePointer::<Value<'c>>::null(),
             refs: RefCounter::new(),
         }
     }
@@ -344,7 +344,7 @@ impl<'c> Node<'c> {
     }
 
     pub fn predecessor_mut(&mut self) -> &'c mut Node<'c> {
-        let mut predecessor = UniquePointer::<'c, Node<'c>>::from_ref_mut(self);
+        let mut predecessor = UniquePointer::<Node<'c>>::from_ref_mut(self);
         let mut node = predecessor.inner_mut();
 
         loop {
@@ -475,7 +475,7 @@ pub fn subtree_delete<'c>(node: &mut Node<'c>) {
             // unreachable!("leaf node {} should have a parent", node);
         }
         node.refs.reset();
-        node.parent = UniquePointer::<'c, Node<'c>>::null();
+        node.parent = UniquePointer::<Node<'c>>::null();
         // node.dealloc();
         return;
     } else {
@@ -487,7 +487,7 @@ pub fn subtree_delete<'c>(node: &mut Node<'c>) {
 
 /// Node private methods
 impl<'c> Node<'c> {
-    pub fn ptr(&self) -> UniquePointer<'c, Node<'c>> {
+    pub fn ptr(&self) -> UniquePointer<Node<'c>> {
         let ptr =
             UniquePointer::copy_from_ref(self, *self.refs, UniquePointer::raw_addr_of_ref(self));
         ptr
