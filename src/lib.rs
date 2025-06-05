@@ -1,16 +1,11 @@
 #![allow(unused)]
 #![feature(intra_doc_pointers)]
 pub mod traits;
-pub use traits::ListValue;
+pub use traits::Value;
 pub mod cons;
 pub use cons::{car, cdr, cons};
 pub mod cell;
 pub use cell::Cell;
-pub mod value;
-pub use value::Value;
-pub mod node;
-pub use node::{subtree_delete, Node};
-pub mod color;
 pub mod macros;
 pub mod unique_pointer;
 pub use unique_pointer::UniquePointer;

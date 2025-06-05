@@ -1,11 +1,8 @@
-use std::rc::Rc;
+use std::fmt::{Debug, Display};
 
-pub trait ListValue:
-    Sized + PartialOrd + Ord + PartialEq + Eq + Clone + std::fmt::Debug + std::fmt::Display
-{
+pub trait Value: Sized + PartialOrd + PartialEq + Clone + Debug + Display + Default {
+    fn nil() -> Self {
+        Default::default()
+    }
 }
-impl<
-        T: Sized + PartialOrd + Ord + PartialEq + Eq + Clone + std::fmt::Debug + std::fmt::Display,
-    > ListValue for T
-{
-}
+impl<T: Sized + PartialOrd + PartialEq + Clone + Debug + Display + Default> Value for T {}

@@ -5,7 +5,9 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-use crate::{color, decr_ref_nonzero, internal, step, warn, RefCounter};
+use crate::color;
+
+use crate::{decr_ref_nonzero, internal, step, warn, RefCounter, Value};
 
 /// [`UniquePointer`] is an experimental data structure that makes
 /// extensive use of unsafe rust to provide a shared pointer
@@ -628,9 +630,9 @@ impl<'c, T: Sized + 'c> Debug for UniquePointer<'c, T> {
         write!(
             f,
             "{}",
-            crate::color::reset(
+            color::reset(
                 [
-                    crate::color::fg("UniquePointer@", 237),
+                    color::fg("UniquePointer@", 237),
                     format!("{:016x}", self.addr()),
                     format!("[refs={}]", self.refs),
                     format!("[alloc={}]", self.alloc),
