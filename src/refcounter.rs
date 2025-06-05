@@ -3,8 +3,6 @@ use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::marker::PhantomData;
 use std::ops::{AddAssign, Deref, DerefMut, SubAssign};
 
-use crate::color;
-
 /// `RefCounter` is a data-structure designed specifically for
 /// internal use in [`UniquePointer`] allowing reference counts to be
 /// shared across clones of [`UniquePointer`].
@@ -156,9 +154,9 @@ impl std::fmt::Debug for RefCounter {
         write!(
             f,
             "{}",
-            color::reset(
+            crate::color::reset(
                 [
-                    color::fg("RefCounter@", 231),
+                    crate::color::fg("RefCounter@", 231),
                     format!("{:016x}", self.data.addr()),
                     format!("[data={}]", self.read()),
                 ]

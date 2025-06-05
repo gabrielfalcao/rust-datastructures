@@ -82,6 +82,25 @@ pub fn ptr_inv<T>(ptr: *const T) -> String {
     addr_inv(ptr.addr())
 }
 
+pub fn node_ptr<'c>(ptr: *const crate::Node<'c>) -> String {
+    if ptr.is_null() {
+        ptr_inv(ptr)
+    } else {
+        if let Some(node) = unsafe { ptr.as_ref() } {
+            format!("{:#?}", node)
+        } else {
+            let addr_str = format!("{:p}", ptr);
+            addr_str
+                .strip_prefix("0x")
+                .map(String::from)
+                .unwrap_or_else(|| addr_str.clone())
+                .strip_prefix('0')
+                .map(String::from)
+                .unwrap_or_else(|| addr_str.clone())
+        }
+    }
+}
+
 pub fn addr_colors(addr: usize) -> (u8, u8) {
     match addr {
         0 => (255, 9),

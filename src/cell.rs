@@ -7,23 +7,20 @@ use std::marker::PhantomData;
 use std::mem::{ManuallyDrop, MaybeUninit};
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr::NonNull;
-use std::str::FromStr;
 
-use crate::color;
-
-use crate::{car, cdr, cons, internal, step, Value};
+use crate::{car, cdr, color, cons, internal, step, Value};
 
 /// Rust implementation of lisp's cons cell.
-pub struct Cell<'c, T: Value + 'c> {
-    head: *mut T,
-    tail: *mut Cell<'c, T>,
+pub struct Cell<'c> {
+    head: *mut Value<'c>,
+    tail: *mut Cell<'c>,
     refs: usize,
 }
 
-impl<'c, T: Value + 'c> Cell<'c, T> {
-    pub fn nil() -> Cell<'c, T> {
+impl<'c> Cell<'c> {
+    pub fn nil() -> Cell<'c> {
         Cell {
-            head: internal::null::ptr::<T>(),
+            head: internal::null::value(),
             tail: internal::null::cell(),
             refs: 0,
         }
@@ -33,17 +30,17 @@ impl<'c, T: Value + 'c> Cell<'c, T> {
         self.head.is_null() && self.tail.is_null()
     }
 
-    pub fn new(value: T) -> Cell<'c, T> {
+    pub fn new(value: Value<'c>) -> Cell<'c> {
         let mut cell = Cell::nil();
         unsafe {
-            let head = internal::alloc::new::<T>();
+            let head = internal::alloc::value();
             head.write(value);
             cell.head = head;
         }
         cell
     }
 
-    pub fn head(&self) -> Option<T> {
+    pub fn head(&self) -> Option<Value<'c>> {
         let value = if self.head.is_null() {
             None
         } else {
@@ -56,18 +53,18 @@ impl<'c, T: Value + 'c> Cell<'c, T> {
         value
     }
 
-    pub fn add(&mut self, mut new: &mut Cell<'c, T>) {
+    pub fn add(&mut self, mut new: &mut Cell<'c>) {
         if self.head.is_null() {
             unsafe {
                 if !new.head.is_null() {
-                    self.head = internal::alloc::new::<T>();
-                    std::ptr::swap(self.head as *mut T, new.head as *mut T);
+                    self.head = internal::alloc::value();
+                    std::ptr::swap(self.head as *mut Value<'c>, new.head as *mut Value<'c>);
                 }
 
                 if !new.tail.is_null() {
                     let refs = new.refs;
                     let mut tail = new.tail.read();
-                    let head = internal::alloc::new::<T>();
+                    let head = internal::alloc::value();
                     if !tail.head.is_null() {
                         head.write(tail.head.read());
                     }
@@ -80,7 +77,7 @@ impl<'c, T: Value + 'c> Cell<'c, T> {
             self.incr_ref();
             if self.tail.is_null() {
                 unsafe {
-                    let mut new_tail = std::ptr::from_mut::<Cell<'c, T>>(new);
+                    let mut new_tail = std::ptr::from_mut::<Cell<'c>>(new);
                     self.tail = new_tail;
                 }
             } else {
@@ -99,7 +96,7 @@ impl<'c, T: Value + 'c> Cell<'c, T> {
             }
             true
         } else if !self.head.is_null() {
-            self.head = internal::null::ptr::<T>();
+            self.head = internal::null::value();
             true
         } else {
             false
@@ -121,7 +118,7 @@ impl<'c, T: Value + 'c> Cell<'c, T> {
         len
     }
 
-    pub fn tail(&self) -> Option<&'c Cell<'c, T>> {
+    pub fn tail(&self) -> Option<&'c Cell<'c>> {
         if self.tail.is_null() {
             None
         } else {
@@ -135,8 +132,8 @@ impl<'c, T: Value + 'c> Cell<'c, T> {
         }
     }
 
-    pub fn values(&self) -> Vec<T> {
-        let mut values = Vec::<T>::new();
+    pub fn values(&self) -> Vec<Value<'c>> {
+        let mut values = Vec::<Value>::new();
         if let Some(head) = self.head() {
             values.push(head.clone());
         }
@@ -150,7 +147,7 @@ impl<'c, T: Value + 'c> Cell<'c, T> {
         self.refs += 1;
         if !self.tail.is_null() {
             unsafe {
-                let mut tail = self.tail as *mut Cell<'c, T>;
+                let mut tail = self.tail as *mut Cell<'c>;
                 if let Some(mut tail) = tail.as_mut() {
                     tail.refs += 1;
                 }
@@ -159,13 +156,48 @@ impl<'c, T: Value + 'c> Cell<'c, T> {
     }
 }
 
-impl<'c, T: Value + 'c> From<T> for Cell<'c, T> {
-    fn from(value: T) -> Cell<'c, T> {
+impl<'c> From<Value<'c>> for Cell<'c> {
+    fn from(value: Value<'c>) -> Cell<'c> {
         Cell::new(value)
     }
 }
-impl<'c, T: Value + 'c> PartialEq<Cell<'c, T>> for Cell<'c, T> {
-    fn eq(&self, other: &Cell<'c, T>) -> bool {
+impl<'c> From<&'c str> for Cell<'c> {
+    fn from(value: &'c str) -> Cell<'c> {
+        let value = Value::from(value);
+        Cell::new(value)
+    }
+}
+impl<'c> From<u8> for Cell<'c> {
+    fn from(value: u8) -> Cell<'c> {
+        Cell::new(Value::Byte(value))
+    }
+}
+impl<'c> From<u64> for Cell<'c> {
+    fn from(value: u64) -> Cell<'c> {
+        if value < u8::MAX.into() {
+            Cell::new(Value::Byte(value as u8))
+        } else {
+            Cell::new(Value::UInt(value))
+        }
+    }
+}
+impl<'c> From<i32> for Cell<'c> {
+    fn from(value: i32) -> Cell<'c> {
+        if let Ok(value) = TryInto::<u64>::try_into(value) {
+            Cell::new(Value::UInt(value))
+        } else {
+            Cell::new(Value::Int(value.into()))
+        }
+    }
+}
+impl<'c> From<i64> for Cell<'c> {
+    fn from(value: i64) -> Cell<'c> {
+        Cell::new(Value::from(value))
+    }
+}
+
+impl<'c> PartialEq<Cell<'c>> for Cell<'c> {
+    fn eq(&self, other: &Cell<'c>) -> bool {
         if self.head.is_null() == other.head.is_null() {
             true
         } else if let Some(head) = self.head() {
@@ -180,17 +212,17 @@ impl<'c, T: Value + 'c> PartialEq<Cell<'c, T>> for Cell<'c, T> {
     }
 }
 
-impl<'c, T: Value + 'c> Default for Cell<'c, T> {
-    fn default() -> Cell<'c, T> {
+impl<'c> Default for Cell<'c> {
+    fn default() -> Cell<'c> {
         Cell::nil()
     }
 }
-impl<'c, T: Value + 'c> Clone for Cell<'c, T> {
-    fn clone(&self) -> Cell<'c, T> {
+impl<'c> Clone for Cell<'c> {
+    fn clone(&self) -> Cell<'c> {
         let mut cell = Cell::nil();
         unsafe {
             if !self.head.is_null() {
-                let head = internal::alloc::new::<T>();
+                let head = internal::alloc::value();
                 head.write(self.head.read());
                 cell.head = head;
             }
@@ -204,33 +236,33 @@ impl<'c, T: Value + 'c> Clone for Cell<'c, T> {
         cell
     }
 }
-impl<'c, T: Value + 'c> Drop for Cell<'c, T> {
+impl<'c> Drop for Cell<'c> {
     fn drop(&mut self) {
         #[rustfmt::skip]#[cfg(feature="debug")]
-        eprintln!("{}",color::reset(color::bgfg(format!("{}{}{}{}:{}",color::fg("dropping ",196),color::fg("cell",49),color::bgfg(format!("@"),231,16),color::ptr_inv(self),color::fore(format!("{:#?}",self),201)),197,16)));
+        eprintln!("{}",color::reset(color::bgfg(format!("{}{}{}{}:{}",crate::color::fg("dropping ",196),crate::color::fg("cell",49),color::bgfg(format!("@"),231,16),color::ptr_inv(self),color::fore(format!("{:#?}",self),201)),197,16)));
 
         if self.refs > 0 {
             #[rustfmt::skip]#[cfg(feature="debug")]
-            eprintln!("{}",color::reset(color::bgfg(format!("{}{}{}{}:{}",color::fg("decrementing refs of ",220),color::fg("cell",49),color::bgfg(format!("@"),231,16),color::ptr_inv(self),color::fore(format!("{:#?}",self),201)),197,16)));
+            eprintln!("{}",color::reset(color::bgfg(format!("{}{}{}{}:{}",crate::color::fg("decrementing refs of ",220),crate::color::fg("cell",49),color::bgfg(format!("@"),231,16),color::ptr_inv(self),color::fore(format!("{:#?}",self),201)),197,16)));
             self.refs -= 1;
         } else {
             unsafe {
-                internal::dealloc::free::<T>(self.head);
+                internal::dealloc::value(self.head);
                 internal::dealloc::cell(self.tail);
             }
         }
     }
 }
 
-impl<'c, T: Value + 'c> std::fmt::Debug for Cell<'c, T> {
+impl std::fmt::Debug for Cell<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
             "{}{}{}{}[head:{} | tail:{}]",
-            color::reset(""),
-            color::fg("Cell", 87),
-            color::fg("@", 231),
-            color::ptr_inv(self),
+            crate::color::reset(""),
+            crate::color::fg("Cell", 87),
+            crate::color::fg("@", 231),
+            crate::color::ptr_inv(self),
             if self.head.is_null() {
                 color::fore("null", 196)
             } else {
