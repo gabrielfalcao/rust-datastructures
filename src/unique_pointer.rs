@@ -577,13 +577,13 @@ impl<'c, T: Sized + 'c> DerefMut for UniquePointer<'c, T> {
     }
 }
 
-// impl<'c, T: Sized + 'c> Drop for UniquePointer<'c, T> {
-//     fn drop(&mut self) {
-//         if self.is_written() {
-//             self.dealloc(true);
-//         }
-//     }
-// }
+impl<'c, T: Sized + 'c> Drop for UniquePointer<'c, T> {
+    fn drop(&mut self) {
+        // if self.is_written() {
+        //     self.dealloc(true);
+        // }
+    }
+}
 
 impl<'c, T: Sized + 'c> From<&T> for UniquePointer<'c, T> {
     fn from(data: &T) -> UniquePointer<'c, T> {

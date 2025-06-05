@@ -116,6 +116,7 @@ impl<'c> Node<'c> {
         let mut left = self.left.inner_mut();
         left.decr_ref();
         self.left.dealloc(true);
+        self.left = UniquePointer::null();
     }
 
     pub fn left(&self) -> Option<&'c Node<'c>> {
@@ -142,6 +143,7 @@ impl<'c> Node<'c> {
         let mut right = self.right.inner_mut();
         right.decr_ref();
         self.right.dealloc(true);
+        self.right = UniquePointer::null();
     }
 
     pub fn right(&self) -> Option<&'c Node<'c>> {
@@ -391,12 +393,15 @@ impl<'c> Node<'c> {
                 };
                 if delete_left {
                     parent.left.dealloc(true);
+                    parent.left = UniquePointer::null();
                 } else {
                     parent.right.dealloc(true);
+                    parent.right = UniquePointer::null();
                 }
                 parent.decr_ref();
             }
             self.parent.dealloc(true);
+            self.parent = UniquePointer::null();
         }
     }
 
@@ -419,15 +424,19 @@ impl<'c> Node<'c> {
         } else {
             if !self.parent.is_null() {
                 self.parent.dealloc(true);
+                self.parent = UniquePointer::null();
             }
             if !self.left.is_null() {
                 self.left.dealloc(true);
+                self.left = UniquePointer::null();
             }
             if !self.right.is_null() {
                 self.right.dealloc(true);
+                self.right = UniquePointer::null();
             }
             if !self.item.is_null() {
                 self.item.dealloc(false);
+                self.item = UniquePointer::null();
             }
         }
     }
@@ -461,6 +470,7 @@ pub fn subtree_delete<'c>(node: &mut Node<'c>) {
                 }
             }
             node.parent.dealloc(true);
+            node.parent = UniquePointer::null();
         } else {
             // unreachable!("leaf node {} should have a parent", node);
         }
