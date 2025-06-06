@@ -191,19 +191,19 @@ fn test_unique_pointer_inner_mut() {
     assert_greater_than!(data.value.addr(), 0, "address should not be null");
     assert_equal!(data.value.is_written(), true);
     assert_equal!(data.value.inner_mut(), &mut Value::from("string"));
-    assert_equal!(data.value.refs(), 2);
+    assert_equal!(data.value.refs(), 1);
     {
         let mut value = &*data.value;
         assert_equal!(value, &mut Value::from("string"));
-        assert_equal!(data.value.refs(), 4);
+        assert_equal!(data.value.refs(), 1);
     }
-    assert_equal!(data.value.refs(), 4);
+    assert_equal!(data.value.refs(), 1);
     {
         let value = &*data.value;
         assert_equal!(value, &Value::from("string"));
-        assert_equal!(data.value.refs(), 6);
+        assert_equal!(data.value.refs(), 1);
     }
-    assert_equal!(data.value.refs(), 6);
+    assert_equal!(data.value.refs(), 1);
 
     assert_equal!(data.value.read(), Value::from("string"));
     assert_equal!(data.value.as_ref(), Some(&Value::from("string")));
@@ -218,12 +218,12 @@ fn test_unique_pointer_from_ref_mut() {
 
     assert_equal!(data.value.is_null(), false);
     assert_equal!(data.value.is_allocated(), true);
-    assert_greater_than!(data.value.addr(), 0, "address should not be null");
     assert_equal!(data.value.is_written(), true);
     assert_equal!(data.value.inner_ref(), &Value::from("string"));
     assert_equal!(data.value.read(), Value::from("string"));
     assert_equal!(data.value.as_ref(), Some(&Value::from("string")));
     assert_equal!(data.value.as_mut(), Some(&mut Value::from("string")));
+    assert_nonzero!(data.value.addr(), "address should not be null");
 }
 
 #[test]
@@ -234,7 +234,7 @@ fn test_unique_pointer_from_ref() {
 
     assert_equal!(data.value.is_null(), false);
     assert_equal!(data.value.is_allocated(), true);
-    assert_greater_than!(data.value.addr(), 0, "address should not be null");
+    assert_nonzero!(data.value.addr(), "address should not be null");
     assert_equal!(data.value.is_written(), true);
     assert_equal!(data.value.inner_ref(), &Value::from("string"));
     assert_equal!(data.value.read(), Value::from("string"));

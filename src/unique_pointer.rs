@@ -350,21 +350,18 @@ impl<'c, T: Sized + 'c> UniquePointer<T> {
     /// `inner_ref` obtains a read-only reference to the value inside
     /// [`UniquePointer`] and increments reference
     pub fn inner_ref<'a>(&self) -> &'a T {
-        self.incr_ref();
         unsafe { std::mem::transmute::<&'c T, &'a T>(self.peek_ref()) }
     }
 
     /// `inner_mut` obtains a mutable reference to the value inside
     /// [`UniquePointer`] and increments reference
     pub fn inner_mut<'a>(&mut self) -> &'a mut T {
-        self.incr_ref();
         // step!("{:#?}", self);
         unsafe { std::mem::transmute::<&'c mut T, &'a mut T>(self.peek_mut()) }
     }
 
     /// `as_ref` is a compatibility layer to the [`AsRef`] implementation in raw pointers
     pub fn as_ref(&self) -> Option<&'c T> {
-        self.incr_ref();
         if self.is_written() {
             Some(self.inner_ref())
         } else {
@@ -374,7 +371,6 @@ impl<'c, T: Sized + 'c> UniquePointer<T> {
 
     /// `as_mut` is a compatibility layer to the [`AsMut`] implementation in raw pointers
     pub fn as_mut(&mut self) -> Option<&'c mut T> {
-        self.incr_ref();
         if self.is_written() {
             Some(self.inner_mut())
         } else {
@@ -563,14 +559,12 @@ impl<T: Sized> Deref for UniquePointer<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        self.incr_ref();
         self.inner_ref()
     }
 }
 
 impl<T: Sized> DerefMut for UniquePointer<T> {
     fn deref_mut(&mut self) -> &mut T {
-        self.incr_ref();
         self.inner_mut()
     }
 }
